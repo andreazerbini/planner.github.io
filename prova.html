@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kanban Covey – Ruoli → LT → Weekly → Agenda</title>
+  <style>
+    :root { --bg:#0b0f16; --panel:#121826; --muted:#9aa4b2; --text:#e6edf3; --accent:#5eead4; --card:#0f172a; --border:#263046; }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:linear-gradient(120deg,#0b0f16,#0a1322 60%,#0b0f16);color:var(--text)}
+    header{display:flex;align-items:center;gap:.8rem;padding:1rem;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(11,15,22,.7);backdrop-filter:blur(8px);z-index:10}
+    h1{font-size:1.05rem;margin:0;font-weight:700;letter-spacing:.2px}
+    .tag{padding:.25rem .5rem;border:1px solid var(--border);border-radius:999px;font-size:.75rem;color:var(--muted)}
+    .actions{margin-left:auto;display:flex;gap:.5rem;flex-wrap:wrap}
+    button,input,select{font:inherit}
+    button{border:1px solid var(--border);background:var(--panel);color:var(--text);padding:.55rem .75rem;border-radius:.75rem;cursor:pointer}
+    button:hover{border-color:#33405e}
+    .primary{border-color:transparent;background:linear-gradient(135deg,#12b3a6,#6ee7d2);color:#061317}
+    .primary:hover{filter:brightness(1.02)}
+
+    .board{display:grid;grid-template-columns:repeat(4,minmax(260px,1fr));gap:1rem;padding:1rem;align-items:start}
+    .col{background:rgba(18,24,38,.7);border:1px solid var(--border);border-radius:1rem;min-height:260px;display:flex;flex-direction:column;overflow:hidden}
+    .col header{position:relative;top:auto;background:none;border:none;padding:.8rem 1rem;gap:.5rem}
+    .col h2{font-size:.95rem;margin:0}
+    .col .count{color:var(--muted);font-size:.8rem}
+    .lane{display:flex;flex-direction:column;gap:.6rem;padding:1rem;min-height:220px}
+
+    .card{background:var(--card);border:1px solid var(--border);border-radius:.8rem;padding:.75rem;display:flex;flex-direction:column;gap:.5rem}
+    .card[draggable="true"]{cursor:grab}
+    .title{font-weight:700;font-size:.95rem}
+    .meta{display:flex;gap:.4rem;flex-wrap:wrap}
+    .chip{font-size:.7rem;border:1px solid var(--border);color:var(--muted);padding:.15rem .45rem;border-radius:.5rem}
+    .imp{border-color:#33405e}
+    .row{display:flex;gap:.5rem}
+    .row input,.row select,.row textarea{width:100%;background:#0b1324;border:1px solid var(--border);color:var(--text);padding:.5rem;border-radius:.5rem}
+    .row textarea{min-height:56px;resize:vertical}
+    .ghost{opacity:.5;border-style:dashed}
+    .toolbar{display:flex;gap:.5rem;flex-wrap:wrap;padding:.5rem 1rem .8rem}
+    .toolbar input, .toolbar select{background:#0b1324;border:1px solid var(--border);color:var(--text);padding:.5rem;border-radius:.5rem}
+
+    .footer{padding:1rem;color:var(--muted);font-size:.85rem;border-top:1px solid var(--border)}
+    .link{color:var(--accent);text-decoration:none}
+
+    @media (max-width:1100px){ .board{grid-template-columns:repeat(2,minmax(260px,1fr));} }
+    @media (max-width:700px){ .board{grid-template-columns:1fr;} header{flex-wrap:wrap} }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Kanban Covey</h1>
+    <span class="tag">Ruoli → LT → Weekly → Agenda</span>
+    <div class="actions">
+      <button id="addCard" title="Aggiungi card alla colonna selezionata">+ Card</button>
+      <select id="targetColumn">
+        <option value="roles">Ruoli</option>
+        <option value="lt">Obiettivi LT</option>
+        <option value="weekly">Obiettivi settimanali</option>
+        <option value="agenda">Agenda</option>
+      </select>
+      <input id="search" placeholder="Cerca titolo, ruolo, tag…"/>
+      <button id="export">Esporta JSON</button>
+      <button id="importBtn">Importa JSON</button>
+      <button id="saveFile">Salva su file</button>
+      <button id="openFile">Apri file</button>
+      <button id="gSignIn">Connetti Google</button>
+      <button id="driveOpen" disabled>Apri da Drive</button>
+      <button id="driveSave" disabled>Salva su Drive</button>
+      <span id="driveStatus" class="tag" title="Stato Google Drive">Drive: offline</span>
+      <button class="primary" id="clear">Azzera board</button>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <select id="roleFilter">
+      <option value="">Tutti i ruoli</option>
+    </select>
+    <select id="importanceFilter">
+      <option value="">Tutte le importanze</option>
+      <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+    </select>
+    <select id="statusFilter">
+      <option value="">Tutti gli stati</option>
+      <option value="todo">Da fare</option>
+      <option value="doing">In corso</option>
+      <option value="done">Fatto</option>
+    </select>
+  </div>
+
+  <main class="board" id="board">
+    <section class="col" data-col="roles">
+      <header><h2>Ruoli</h2><span class="count"></span></header>
+      <div class="lane" role="list"></div>
+    </section>
+    <section class="col" data-col="lt">
+      <header><h2>Obiettivi a lungo termine</h2><span class="count"></span></header>
+      <div class="lane" role="list"></div>
+    </section>
+    <section class="col" data-col="weekly">
+      <header><h2>Obiettivi settimanali</h2><span class="count"></span></header>
+      <div class="lane" role="list"></div>
+    </section>
+    <section class="col" data-col="agenda">
+      <header><h2>Agenda</h2><span class="count"></span></header>
+      <div class="lane" role="list"></div>
+    </section>
+  </main>
+
+  <div class="footer">
+    <strong>Salvataggio locale:</strong> automatico in <code>localStorage</code>. Puoi anche <em>Esportare/Importare</em> JSON.
+    Su browser Chromium/Edge puoi usare "Salva su file" e "Apri file" (File System Access API) per lavorare direttamente su un <code>.json</code> locale.
+    <br/>Opzionale: connessione a <strong>Google Drive</strong> (serve API Key e OAuth Client ID tuoi) per aprire/salvare il JSON.
+  </div>
+
+  <template id="cardT">
+    <article class="card" draggable="true">
+      <input class="title" placeholder="Titolo (es. Introdurre ML nel prodotto)" />
+      <div class="row">
+        <input class="role" placeholder="Ruolo (es. Team Leader, Atleta, Figlio)"/>
+        <select class="importance" title="Importanza">
+          <option value="">Imp.</option>
+          <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+        </select>
+      </div>
+      <div class="row">
+        <input class="linkLT" placeholder="LT collegato (ID o titolo)"/>
+        <input class="due" type="date"/>
+      </div>
+      <textarea class="notes" placeholder="Note"></textarea>
+      <div class="meta">
+        <span class="chip state">Da fare</span>
+        <span class="chip id"></span>
+      </div>
+      <div class="row">
+        <select class="stateSelect">
+          <option value="todo">Da fare</option>
+          <option value="doing">In corso</option>
+          <option value="done">Fatto</option>
+        </select>
+        <button class="del">Elimina</button>
+      </div>
+    </article>
+  </template>
+
+  <input id="filePicker" type="file" accept="application/json" hidden />
+
+  <script>
+  // --- Stato ---
+  const LS_KEY = 'coveyBoardData_v1';
+  let state = loadState();
+  let currentFileHandle = null; // File System Access API handle
+
+  function defaultState(){
+    return { roles:[], lt:[], weekly:[], agenda:[], nextId:1 };
+  }
+  function loadState(){
+    try{ return JSON.parse(localStorage.getItem(LS_KEY)) || defaultState(); }
+    catch{ return defaultState(); }
+  }
+  function persist(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); render(); }
+
+  // --- Util (deve stare PRIMA di qualunque uso) ---
+  function escapeHtml(s){
+    return (s||'').replace(/[&<>"']/g, function(m){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]);
+    });
+  }
+
+  // --- UI refs ---
+  const tpl = document.getElementById('cardT');
+  const board = document.getElementById('board');
+  const addBtn = document.getElementById('addCard');
+  const targetSelect = document.getElementById('targetColumn');
+  const search = document.getElementById('search');
+  const roleFilter = document.getElementById('roleFilter');
+  const importanceFilter = document.getElementById('importanceFilter');
+  const statusFilter = document.getElementById('statusFilter');
+
+  // Seed iniziale (solo prima esecuzione)
+  if(!localStorage.getItem(LS_KEY)){
+    state.roles.push(card('Ruoli','Team Leader','', '', '', 'todo'));
+    state.lt.push(card('Obiettivi LT','Introdurre ML nel prodotto','Team Leader','5','', 'doing'));
+    state.weekly.push(card('Weekly','PoC RAG su documentale','Team Leader','4','', 'todo'));
+    state.agenda.push(card('Agenda','Sessione deep work ML','Team Leader','5', new Date().toISOString().slice(0,10), 'todo'));
+    persist();
+  }
+
+  function card(col,title,role,importance,due,stateStr){
+    return { id: String(state.nextId++), title, role, importance, due, notes:'', linkLT:'', state:stateStr||'todo' };
+  }
+
+  // --- Rendering ---
+  function render(){
+    // Aggiorna filtri ruolo
+    const roles = new Set([
+      ...state.roles.map(c=>c.title||c.role),
+      ...state.lt.map(c=>c.role),
+      ...state.weekly.map(c=>c.role),
+      ...state.agenda.map(c=>c.role),
+    ].filter(Boolean));
+    const prev = roleFilter.value;
+    roleFilter.innerHTML = '<option value="">Tutti i ruoli</option>' + [...roles].sort().map(r=>`<option>${escapeHtml(r)}</option>`).join('');
+    roleFilter.value = prev;
+
+    // Per ogni colonna
+    document.querySelectorAll('.col').forEach(col=>{
+      const key = col.dataset.col;
+      const lane = col.querySelector('.lane');
+      lane.innerHTML = '';
+
+      const list = (state[key]||[]).filter(matchesFilters);
+      list.forEach(c=> lane.appendChild(renderCard(key,c)) );
+      col.querySelector('.count').textContent = list.length + ' card';
+      addDndHandlers(lane, key);
+    });
+  }
+
+  function renderCard(column, c){
+    const node = tpl.content.firstElementChild.cloneNode(true);
+    node.dataset.id = c.id;
+    node.querySelector('.title').value = c.title;
+    node.querySelector('.role').value = c.role||'';
+    node.querySelector('.importance').value = c.importance||'';
+    node.querySelector('.due').value = c.due||'';
+    node.querySelector('.notes').value = c.notes||'';
+    node.querySelector('.linkLT').value = c.linkLT||'';
+    node.querySelector('.state').textContent = prettyState(c.state);
+    node.querySelector('.id').textContent = 'ID ' + c.id;
+    node.addEventListener('dragstart', e=>{
+      e.dataTransfer.setData('text/plain', JSON.stringify({ id:c.id, from:column }));
+      requestAnimationFrame(()=> node.classList.add('ghost'));
+    });
+    node.addEventListener('dragend', ()=> node.classList.remove('ghost'));
+
+    node.querySelectorAll('input,textarea,select').forEach(inp=>{
+      inp.addEventListener('input', ()=>{
+        const ref = findCard(column, c.id);
+        ref.title = node.querySelector('.title').value;
+        ref.role = node.querySelector('.role').value;
+        ref.importance = node.querySelector('.importance').value;
+        ref.due = node.querySelector('.due').value;
+        ref.notes = node.querySelector('.notes').value;
+        ref.linkLT = node.querySelector('.linkLT').value;
+        ref.state = node.querySelector('.stateSelect').value || ref.state;
+        node.querySelector('.state').textContent = prettyState(ref.state);
+        persist();
+      });
+    });
+    node.querySelector('.stateSelect').value = c.state;
+    node.querySelector('.del').addEventListener('click', ()=>{ removeCard(column,c.id); persist(); });
+    return node;
+  }
+
+  function findCard(column,id){ return state[column].find(x=>x.id===id); }
+  function removeCard(column,id){ state[column] = state[column].filter(x=>x.id!==id); }
+  function prettyState(s){ return s==='doing'?'In corso': s==='done'?'Fatto':'Da fare'; }
+
+  function matchesFilters(c){
+    const q = search.value.trim().toLowerCase();
+    if(q && ![c.title,c.role,c.notes,c.linkLT].join(' ').toLowerCase().includes(q)) return false;
+    if(roleFilter.value && c.role !== roleFilter.value) return false;
+    if(importanceFilter.value && c.importance !== importanceFilter.value) return false;
+    if(statusFilter.value && c.state !== statusFilter.value) return false;
+    return true;
+  }
+
+  // --- Drag & Drop sulle lane ---
+  function addDndHandlers(lane, targetKey){
+    lane.addEventListener('dragover', e=>{ e.preventDefault(); });
+    lane.addEventListener('drop', e=>{
+      e.preventDefault();
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      if(!data) return;
+      const fromList = state[data.from];
+      const item = fromList.find(x=>x.id===data.id);
+      if(!item) return;
+      if(data.from!==targetKey){
+        state[data.from] = fromList.filter(x=>x.id!==data.id);
+        state[targetKey].push(item);
+      }
+      persist();
+    });
+  }
+
+  // --- Azioni globali ---
+  addBtn.onclick = ()=>{
+    const key = targetSelect.value;
+    state[key].push(card(key,'', '', '', '', 'todo'));
+    persist();
+  };
+  search.oninput = roleFilter.oninput = importanceFilter.oninput = statusFilter.oninput = render;
+
+  document.getElementById('clear').onclick = ()=>{
+    if(confirm('Sicuro di azzerare la board?')){ state = defaultState(); persist(); }
+  };
+
+  // --- Export / Import JSON ---
+  document.getElementById('export').onclick = ()=>{
+    const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'kanban-covey.json' });
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+  };
+  const filePicker = document.getElementById('filePicker');
+  document.getElementById('importBtn').onclick = ()=> filePicker.click();
+  filePicker.onchange = async (e)=>{
+    const file = e.target.files[0]; if(!file) return;
+    try { const text = await file.text(); const data = JSON.parse(text); if(validate(data)){ state = data; persist(); } else alert('JSON non valido'); }
+    catch(err){ alert('Errore import: '+err.message); }
+    finally{ filePicker.value=''; }
+  };
+  function validate(data){ return ['roles','lt','weekly','agenda','nextId'].every(k=>k in data); }
+
+  // --- File System Access API (Chrome/Edge) ---
+  const supportsFSA = 'showSaveFilePicker' in window && 'showOpenFilePicker' in window;
+  async function saveToFile(){
+    try{
+      if(!supportsFSA) return alert('Il tuo browser non supporta il salvataggio diretto. Usa Esporta JSON.');
+      if(!currentFileHandle){
+        currentFileHandle = await window.showSaveFilePicker({ suggestedName:'kanban-covey.json', types:[{description:'JSON', accept:{'application/json':['.json']}}] });
+      }
+      const writable = await currentFileHandle.createWritable();
+      await writable.write(JSON.stringify(state,null,2));
+      await writable.close();
+      alert('Salvato ✅');
+    }catch(err){ if(err.name!=='AbortError') alert('Errore salvataggio: '+err.message); }
+  }
+  async function openFromFile(){
+    try{
+      if(!supportsFSA) return alert('Il tuo browser non supporta l\'apertura diretta. Usa Importa JSON.');
+      const [handle] = await window.showOpenFilePicker({ types:[{description:'JSON', accept:{'application/json':['.json']}}]});
+      currentFileHandle = handle;
+      const file = await handle.getFile();
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if(validate(data)){ state = data; persist(); }
+      else alert('JSON non valido');
+    }catch(err){ if(err.name!=='AbortError') alert('Errore apertura: '+err.message); }
+  }
+  document.getElementById('saveFile').onclick = saveToFile;
+  document.getElementById('openFile').onclick = openFromFile;
+
+  // === Google Drive (opzionale) ===
+  const GD = {
+    CLIENT_ID: 'REPLACE_ME_CLIENT_ID.apps.googleusercontent.com',
+    API_KEY: 'REPLACE_ME_API_KEY',
+    DISCOVERY_DOCS: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+    SCOPES: 'https://www.googleapis.com/auth/drive.file',
+    tokenClient: null,
+    gapiLoaded: false,
+    gisLoaded: false,
+    signedIn: false,
+    currentFileId: null,
+  };
+  const driveStatus = document.getElementById('driveStatus');
+  const gBtn = document.getElementById('gSignIn');
+  const driveOpenBtn = document.getElementById('driveOpen');
+  const driveSaveBtn = document.getElementById('driveSave');
+
+  function updateDriveUI(){
+    driveStatus.textContent = GD.signedIn ? 'Drive: connesso' : 'Drive: offline';
+    driveOpenBtn.disabled = !(GD.signedIn && GD.gapiLoaded);
+    driveSaveBtn.disabled = !(GD.signedIn && GD.gapiLoaded);
+  }
+
+  function loadGapi(){
+    return new Promise((resolve,reject)=>{
+      if(GD.gapiLoaded) return resolve();
+      const s = document.createElement('script');
+      s.src = 'https://apis.google.com/js/api.js';
+      s.onload = ()=>{ gapi.load('client', async ()=>{ try{ await gapi.client.init({ apiKey: GD.API_KEY, discoveryDocs: GD.DISCOVERY_DOCS }); GD.gapiLoaded = true; updateDriveUI(); resolve(); }catch(e){ console.error('gapi init error', e); reject(e); } }); };
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+  function loadGIS(){
+    return new Promise((resolve,reject)=>{
+      if(GD.gisLoaded) return resolve();
+      const s = document.createElement('script');
+      s.src = 'https://accounts.google.com/gsi/client';
+      s.onload = ()=>{ try{ GD.tokenClient = google.accounts.oauth2.initTokenClient({ client_id: GD.CLIENT_ID, scope: GD.SCOPES, callback: (resp)=>{ if(resp && resp.access_token){ GD.signedIn = true; updateDriveUI(); } } }); GD.gisLoaded = true; resolve(); }catch(e){ reject(e); } };
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+  async function ensureDriveReady(){
+    if(GD.CLIENT_ID.startsWith('REPLACE_ME') || GD.API_KEY.startsWith('REPLACE_ME')){
+      alert('Per usare Google Drive, imposta CLIENT_ID e API_KEY nel codice.');
+      return false;
+    }
+    try{ await loadGapi(); await loadGIS(); return true; }
+    catch(e){ alert('Errore caricamento Google API: '+e.message); return false; }
+  }
+  gBtn.onclick = async ()=>{ if(!(await ensureDriveReady())) return; GD.tokenClient.requestAccessToken({ prompt: 'consent' }); };
+
+  driveOpenBtn.onclick = async ()=>{
+    try{
+      if(!(await ensureDriveReady())) return;
+      const res = await gapi.client.drive.files.list({ q: "mimeType='application/json' and trashed=false", pageSize: 25, fields: 'files(id,name,modifiedTime)' });
+      const files = res.result.files || [];
+      if(files.length===0){ alert('Nessun JSON trovato nel tuo Drive.'); return; }
+      const nameList = files.map((f,i)=> `${i+1}) ${f.name} — ${new Date(f.modifiedTime).toLocaleString()}`).join('\n');
+      const idx = prompt('Scegli file da aprire (numero):\n'+nameList);
+      const i = Number(idx)-1; if(!(i>=0 && i<files.length)) return;
+      const file = files[i];
+      const dl = await gapi.client.drive.files.get({ fileId: file.id, alt: 'media' });
+      const data = JSON.parse(dl.body);
+      if(validate(data)){ state = data; persist(); GD.currentFileId = file.id; alert('Aperto da Drive: '+file.name); }
+      else alert('JSON non valido');
+    }catch(e){ alert('Errore apertura Drive: '+((e.result && e.result.error && e.result.error.message) || e.message)); }
+  };
+
+  driveSaveBtn.onclick = async ()=>{
+    try{
+      if(!(await ensureDriveReady())) return;
+      const fileName = 'kanban-covey.json';
+      const metadata = { name: fileName, mimeType: 'application/json' };
+      const boundary = '-------314159265358979323846';
+      const delimiter = '\r\n--' + boundary + '\r\n';
+      const closeDelim = '\r\n--' + boundary + '--';
+      const content = JSON.stringify(state, null, 2);
+      const multipartBody =
+        delimiter + 'Content-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(metadata) +
+        delimiter + 'Content-Type: application/json\r\n\r\n' + content + closeDelim;
+
+      if(GD.currentFileId){
+        await gapi.client.request({
+          path: '/upload/drive/v3/files/' + encodeURIComponent(GD.currentFileId),
+          method: 'PATCH',
+          params: { uploadType: 'multipart' },
+          headers: { 'Content-Type': 'multipart/related; boundary=' + boundary },
+          body: multipartBody
+        });
+        alert('Aggiornato su Drive ✅');
+      } else {
+        const resp = await gapi.client.request({
+          path: '/upload/drive/v3/files',
+          method: 'POST',
+          params: { uploadType: 'multipart' },
+          headers: { 'Content-Type': 'multipart/related; boundary=' + boundary },
+          body: multipartBody
+        });
+        GD.currentFileId = resp.result && resp.result.id;
+        alert('Salvato su Drive ✅');
+      }
+    }catch(e){ alert('Errore salvataggio Drive: '+((e.result && e.result.error && e.result.error.message) || e.message)); }
+  };
+
+  updateDriveUI();
+
+  // --- Mini self-test (non invasivo) ---
+  (function selfTest(){
+    try{
+      console.assert(typeof escapeHtml === 'function', 'escapeHtml non è una funzione');
+      // Sanity su escapeHtml
+      const sample = `<tag>&"'</tag>`;
+      console.assert(escapeHtml(sample) === '&lt;tag&gt;&amp;&quot;&#39;&lt;/tag&gt;', 'escapeHtml fallisce');
+      console.assert(document.getElementById('roleFilter'), 'roleFilter mancante');
+      // prettyState
+      console.assert(prettyState('todo')==='Da fare' && prettyState('doing')==='In corso' && prettyState('done')==='Fatto', 'prettyState mapping errato');
+      // matchesFilters: set/restore
+      const _b = { s: search.value, r: roleFilter.value, i: importanceFilter.value, t: statusFilter.value };
+      search.value = 'abc'; roleFilter.value=''; importanceFilter.value=''; statusFilter.value='';
+      console.assert(matchesFilters({title:'abc', role:'X', notes:'', linkLT:'', importance:'', state:'todo'})===true, 'matchesFilters dovrebbe passare con query presente');
+      search.value = 'xyz';
+      console.assert(matchesFilters({title:'abc', role:'X', notes:'', linkLT:'', importance:'', state:'todo'})===false, 'matchesFilters dovrebbe fallire con query non corrispondente');
+      search.value = _b.s; roleFilter.value=_b.r; importanceFilter.value=_b.i; statusFilter.value=_b.t;
+      // Render non deve lanciare
+      render();
+      console.log('[SELFTEST] OK');
+    }catch(e){
+      console.error('[SELFTEST] Fallito:', e);
+    }
+  })();
+  </script>
+</body>
+</html>
