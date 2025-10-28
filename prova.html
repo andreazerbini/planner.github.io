@@ -3,12 +3,24 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Kanban Covey – Ruoli → LT → Weekly → Agenda</title>
+  <title>Kanban Covey – Tabs + Tabelle + Drive</title>
   <style>
-    :root { --bg:#0b0f16; --panel:#121826; --muted:#9aa4b2; --text:#e6edf3; --accent:#5eead4; --card:#0f172a; --border:#263046; }
+    :root{
+  --bg:#0b0f16; --panel:#121826; --muted:#9aa4b2; --text:#e6edf3; --accent:#5eead4;
+  --card:#0f172a; --border:#263046; --warn:#f59e0b; --danger:#ef4444;
+  /* altezze reali */
+  --h-header:56px; 
+  --h-tabs:46px;
+  --sticky-top: calc(var(--h-header) + var(--h-tabs));
+}
     *{box-sizing:border-box}
     body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:linear-gradient(120deg,#0b0f16,#0a1322 60%,#0b0f16);color:var(--text)}
-    header{display:flex;align-items:center;gap:.8rem;padding:1rem;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(11,15,22,.7);backdrop-filter:blur(8px);z-index:10}
+    header{
+      display:flex;align-items:center;gap:.8rem;padding:1rem;
+      border-bottom:1px solid var(--border);
+      position:sticky; top:0; height:var(--h-header);
+      background:rgba(11,15,22,.7); backdrop-filter:blur(8px); z-index:20;
+    }
     h1{font-size:1.05rem;margin:0;font-weight:700;letter-spacing:.2px}
     .tag{padding:.25rem .5rem;border:1px solid var(--border);border-radius:999px;font-size:.75rem;color:var(--muted)}
     .actions{margin-left:auto;display:flex;gap:.5rem;flex-wrap:wrap}
@@ -17,47 +29,58 @@
     button:hover{border-color:#33405e}
     .primary{border-color:transparent;background:linear-gradient(135deg,#12b3a6,#6ee7d2);color:#061317}
     .primary:hover{filter:brightness(1.02)}
+    .danger{border-color:transparent;background:linear-gradient(135deg,#ef4444,#f59e0b);color:#2b100f}
 
-    .board{display:grid;grid-template-columns:repeat(4,minmax(260px,1fr));gap:1rem;padding:1rem;align-items:start}
-    .col{background:rgba(18,24,38,.7);border:1px solid var(--border);border-radius:1rem;min-height:260px;display:flex;flex-direction:column;overflow:hidden}
-    .col header{position:relative;top:auto;background:none;border:none;padding:.8rem 1rem;gap:.5rem}
-    .col h2{font-size:.95rem;margin:0}
-    .col .count{color:var(--muted);font-size:.8rem}
-    .lane{display:flex;flex-direction:column;gap:.6rem;padding:1rem;min-height:220px}
+    /* Tabs */
+    .tabs{
+      display:flex; gap:.5rem; padding:.6rem 1rem; align-items:center;
+      border-bottom:1px solid var(--border);
+      position:sticky; top:var(--h-header); height:var(--h-tabs);
+      background:rgba(11,15,22,.7); backdrop-filter:blur(8px); z-index:15;
+    }
+    .tab{padding:.45rem .75rem;border:1px solid var(--border);border-radius:.65rem;cursor:pointer;color:var(--muted)}
+    .tab.active{color:#061317;background:linear-gradient(135deg,#12b3a6,#6ee7d2);border-color:transparent}
 
-    .card{background:var(--card);border:1px solid var(--border);border-radius:.8rem;padding:.75rem;display:flex;flex-direction:column;gap:.5rem}
-    .card[draggable="true"]{cursor:grab}
-    .title{font-weight:700;font-size:.95rem}
-    .meta{display:flex;gap:.4rem;flex-wrap:wrap}
-    .chip{font-size:.7rem;border:1px solid var(--border);color:var(--muted);padding:.15rem .45rem;border-radius:.5rem}
-    .imp{border-color:#33405e}
-    .row{display:flex;gap:.5rem}
-    .row input,.row select,.row textarea{width:100%;background:#0b1324;border:1px solid var(--border);color:var(--text);padding:.5rem;border-radius:.5rem}
-    .row textarea{min-height:56px;resize:vertical}
-    .ghost{opacity:.5;border-style:dashed}
-    .toolbar{display:flex;gap:.5rem;flex-wrap:wrap;padding:.5rem 1rem .8rem}
-    .toolbar input, .toolbar select{background:#0b1324;border:1px solid var(--border);color:var(--text);padding:.5rem;border-radius:.5rem}
+    main{padding:1rem;display:grid;gap:1rem}
+
+    /* Tabelle */
+    table{width:100%;border-collapse:separate;border-spacing:0;background:rgba(18,24,38,.7);border:1px solid var(--border);border-radius:.9rem;overflow:hidden}
+    thead th{
+      -- position:sticky; top:var(--sticky-top); z-index:10;
+      background:#121826; border-bottom:1px solid var(--border);
+      text-align:left; padding:.7rem .8rem; font-size:.85rem;
+      color:var(--muted); user-select:none; white-space:nowrap;
+    }
+    th.sortable::after{ content:" ▲▼"; opacity:.35; font-size:.7rem; }
+    th.sortable.asc::after{ content:" ▲"; opacity:.85; }
+    th.sortable.desc::after{ content:" ▼"; opacity:.85; }
+    tbody td{padding:.6rem .8rem;border-bottom:1px solid #1b2436}
+    tbody tr:hover{background:#0f1628}
+    tbody tr:last-child td{border-bottom:none}
+    th.sortable{cursor:pointer}
+    th.sortable::after{content:' \25B4\25BE';opacity:.35;font-size:.7rem}
+    .controls{display:flex;gap:.4rem;flex-wrap:wrap}
+    input[type="text"], textarea, select, input[type="date"], input[type="number"]{width:100%;background:#0b1324;border:1px solid var(--border);color:var(--text);padding:.45rem .5rem;border-radius:.5rem}
+    textarea{min-height:54px;resize:vertical}
+    .grid{display:grid;gap:1rem}
+
+    /* Dashboard cards */
+    .cards{display:grid;grid-template-columns:repeat(4,minmax(240px,1fr));gap:1rem}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:.9rem;padding:.8rem;display:flex;flex-direction:column;gap:.45rem}
+    .badge{font-size:.7rem;border:1px solid var(--border);color:var(--muted);padding:.1rem .45rem;border-radius:.5rem}
+    .title{font-weight:700}
 
     .footer{padding:1rem;color:var(--muted);font-size:.85rem;border-top:1px solid var(--border)}
-    .link{color:var(--accent);text-decoration:none}
 
-    @media (max-width:1100px){ .board{grid-template-columns:repeat(2,minmax(260px,1fr));} }
-    @media (max-width:700px){ .board{grid-template-columns:1fr;} header{flex-wrap:wrap} }
+    @media(max-width:1200px){.cards{grid-template-columns:repeat(2,minmax(240px,1fr))}}
+    @media(max-width:700px){.cards{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
   <header>
     <h1>Kanban Covey</h1>
-    <span class="tag">Ruoli → LT → Weekly → Agenda</span>
+    <span class="tag">Ruoli → LT → BT → Attività</span>
     <div class="actions">
-      <button id="addCard" title="Aggiungi card alla colonna selezionata">+ Card</button>
-      <select id="targetColumn">
-        <option value="roles">Ruoli</option>
-        <option value="lt">Obiettivi LT</option>
-        <option value="weekly">Obiettivi settimanali</option>
-        <option value="agenda">Agenda</option>
-      </select>
-      <input id="search" placeholder="Cerca titolo, ruolo, tag…"/>
       <button id="export">Esporta JSON</button>
       <button id="importBtn">Importa JSON</button>
       <button id="saveFile">Salva su file</button>
@@ -66,234 +89,594 @@
       <button id="driveOpen" disabled>Apri da Drive</button>
       <button id="driveSave" disabled>Salva su Drive</button>
       <span id="driveStatus" class="tag" title="Stato Google Drive">Drive: offline</span>
-      <button class="primary" id="clear">Azzera board</button>
+      <button class="danger" id="clear">Azzera</button>
     </div>
   </header>
 
-  <div class="toolbar">
-    <select id="roleFilter">
-      <option value="">Tutti i ruoli</option>
-    </select>
-    <select id="importanceFilter">
-      <option value="">Tutte le importanze</option>
-      <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
-    </select>
-    <select id="statusFilter">
-      <option value="">Tutti gli stati</option>
-      <option value="todo">Da fare</option>
-      <option value="doing">In corso</option>
-      <option value="done">Fatto</option>
-    </select>
-  </div>
+  <nav class="tabs" id="tabs"></nav>
 
-  <main class="board" id="board">
-    <section class="col" data-col="roles">
-      <header><h2>Ruoli</h2><span class="count"></span></header>
-      <div class="lane" role="list"></div>
-    </section>
-    <section class="col" data-col="lt">
-      <header><h2>Obiettivi a lungo termine</h2><span class="count"></span></header>
-      <div class="lane" role="list"></div>
-    </section>
-    <section class="col" data-col="weekly">
-      <header><h2>Obiettivi settimanali</h2><span class="count"></span></header>
-      <div class="lane" role="list"></div>
-    </section>
-    <section class="col" data-col="agenda">
-      <header><h2>Agenda</h2><span class="count"></span></header>
-      <div class="lane" role="list"></div>
-    </section>
-  </main>
+  <main id="view"></main>
 
   <div class="footer">
     <strong>Salvataggio locale:</strong> automatico in <code>localStorage</code>. Puoi anche <em>Esportare/Importare</em> JSON.
     Su browser Chromium/Edge puoi usare "Salva su file" e "Apri file" (File System Access API) per lavorare direttamente su un <code>.json</code> locale.
-    <br/>Opzionale: connessione a <strong>Google Drive</strong> (serve API Key e OAuth Client ID tuoi) per aprire/salvare il JSON.
+    <br/>Opzionale: connessione a <strong>Google Drive</strong> (inserisci <em>Client ID</em> e <em>API Key</em>) per aprire/salvare il JSON.
   </div>
-
-  <template id="cardT">
-    <article class="card" draggable="true">
-      <input class="title" placeholder="Titolo (es. Introdurre ML nel prodotto)" />
-      <div class="row">
-        <input class="role" placeholder="Ruolo (es. Team Leader, Atleta, Figlio)"/>
-        <select class="importance" title="Importanza">
-          <option value="">Imp.</option>
-          <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
-        </select>
-      </div>
-      <div class="row">
-        <input class="linkLT" placeholder="LT collegato (ID o titolo)"/>
-        <input class="due" type="date"/>
-      </div>
-      <textarea class="notes" placeholder="Note"></textarea>
-      <div class="meta">
-        <span class="chip state">Da fare</span>
-        <span class="chip id"></span>
-      </div>
-      <div class="row">
-        <select class="stateSelect">
-          <option value="todo">Da fare</option>
-          <option value="doing">In corso</option>
-          <option value="done">Fatto</option>
-        </select>
-        <button class="del">Elimina</button>
-      </div>
-    </article>
-  </template>
 
   <input id="filePicker" type="file" accept="application/json" hidden />
 
   <script>
-  // --- Stato ---
-  const LS_KEY = 'coveyBoardData_v1';
+  /*******************
+   * STATO & MODELLO *
+   *******************/
+  const LS_KEY = 'covey_v2_domain_model';
+  const LS_GD_CLIENT_ID = 'covey_gd_client_id';
+  const LS_GD_API_KEY = 'covey_gd_api_key';
+
+  /**
+   * Dominio
+   * role {id,title,importance:int, lt_goals:[lt]}
+   * lt {id,title,description,importance:int,due(yyyy-mm-dd), st_goals:[st]}
+   * st {id,title,description,importance?:int,due?:date, tasks:[task]}
+   * task {id,title,description,importance?:int,due?:date}
+   */
   let state = loadState();
-  let currentFileHandle = null; // File System Access API handle
+  let currentFileHandle = null; // File System Access API
 
   function defaultState(){
-    return { roles:[], lt:[], weekly:[], agenda:[], nextId:1 };
+    return { nextId:1, roles:[] };
   }
   function loadState(){
-    try{ return JSON.parse(localStorage.getItem(LS_KEY)) || defaultState(); }
-    catch{ return defaultState(); }
+    try{ return JSON.parse(localStorage.getItem(LS_KEY)) || seed(); }
+    catch{ return seed(); }
   }
-  function persist(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); render(); }
+  function seed(){
+    // Seed iniziale senza dipendere da mk* (evita TDZ) e senza chiamare render/persist
+    const s = { nextId:1, roles:[] };
+    // helper locali
+    const today = ()=> new Date().toISOString().slice(0,10);
+    function datePlus(days){ const d=new Date(); d.setDate(d.getDate()+days); return d.toISOString().slice(0,10); }
+    const nid = ()=> String(s.nextId++);
 
-  // --- Util (deve stare PRIMA di qualunque uso) ---
-  function escapeHtml(s){
-    return (s||'').replace(/[&<>"']/g, function(m){
-      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]);
-    });
+    const r1 = { id:nid(), title:'Team Leader', importance:3, lt_goals:[] };
+    const lt1 = { id:nid(), title:'Introdurre ML nel prodotto', description:'Roadmap ML (RAG, valutazione, privacy)', importance:5, due: datePlus(120), st_goals:[] };
+    const st1 = { id:nid(), title:'PoC RAG su documentale', description:'Pipeline base eval + feedback', importance:null, due:null, tasks:[] };
+    const t1  = { id:nid(), title:'Progettazione schema vector DB', description:'Definire spazio embedding e chunking', importance:4, due: datePlus(30) };
+
+    st1.tasks.push(t1);
+    lt1.st_goals.push(st1);
+    r1.lt_goals.push(lt1);
+    s.roles.push(r1);
+    // niente persist() qui: verrà chiamato dopo che l'UI è pronta
+    return s;
   }
+  function persist(s = state){ state = s; localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+  const nextId = ()=> String(state.nextId++);
+  const mkRole = (title,importance)=>({id:nextId(), title, importance:toInt(importance,1), lt_goals:[]});
+  const mkLT = (title,description,importance,due)=>({id:nextId(), title, description:description||'', importance:toInt(importance,1), due:due||today(), st_goals:[]});
+  const mkST = (title,description,importance,due)=>({id:nextId(), title, description:description||'', importance:toIntNull(importance), due:due||null, tasks:[]});
+  const mkTask = (title,description,importance,due)=>({id:nextId(), title, description:description||'', importance:toIntNull(importance), due:due||null});
 
-  // --- UI refs ---
-  const tpl = document.getElementById('cardT');
-  const board = document.getElementById('board');
-  const addBtn = document.getElementById('addCard');
-  const targetSelect = document.getElementById('targetColumn');
-  const search = document.getElementById('search');
-  const roleFilter = document.getElementById('roleFilter');
-  const importanceFilter = document.getElementById('importanceFilter');
-  const statusFilter = document.getElementById('statusFilter');
+  const today = ()=> new Date().toISOString().slice(0,10);
+  function datePlus(days){ const d = new Date(); d.setDate(d.getDate()+days); return d.toISOString().slice(0,10); }
+  const toInt = (v,def=1)=>{ const n = parseInt(v,10); return isNaN(n)?def:Math.max(1,Math.min(5,n)); };
+  const toIntNull = (v)=>{ if(v==null||v==='') return null; return toInt(v,1); };
 
-  // Seed iniziale (solo prima esecuzione)
-  if(!localStorage.getItem(LS_KEY)){
-    state.roles.push(card('Ruoli','Team Leader','', '', '', 'todo'));
-    state.lt.push(card('Obiettivi LT','Introdurre ML nel prodotto','Team Leader','5','', 'doing'));
-    state.weekly.push(card('Weekly','PoC RAG su documentale','Team Leader','4','', 'todo'));
-    state.agenda.push(card('Agenda','Sessione deep work ML','Team Leader','5', new Date().toISOString().slice(0,10), 'todo'));
-    persist();
-  }
+  /****************
+   * VINCOLI/EREDI *
+   ****************/
+  function effImportance(node, parentImp){ return node.importance!=null ? toInt(node.importance,1) : parentImp; }
+  function effDue(node, parentDue){ return node.due || parentDue || null; }
 
-  function card(col,title,role,importance,due,stateStr){
-    return { id: String(state.nextId++), title, role, importance, due, notes:'', linkLT:'', state:stateStr||'todo' };
-  }
-
-  // --- Rendering ---
-  function render(){
-    // Aggiorna filtri ruolo
-    const roles = new Set([
-      ...state.roles.map(c=>c.title||c.role),
-      ...state.lt.map(c=>c.role),
-      ...state.weekly.map(c=>c.role),
-      ...state.agenda.map(c=>c.role),
-    ].filter(Boolean));
-    const prev = roleFilter.value;
-    roleFilter.innerHTML = '<option value="">Tutti i ruoli</option>' + [...roles].sort().map(r=>`<option>${escapeHtml(r)}</option>`).join('');
-    roleFilter.value = prev;
-
-    // Per ogni colonna
-    document.querySelectorAll('.col').forEach(col=>{
-      const key = col.dataset.col;
-      const lane = col.querySelector('.lane');
-      lane.innerHTML = '';
-
-      const list = (state[key]||[]).filter(matchesFilters);
-      list.forEach(c=> lane.appendChild(renderCard(key,c)) );
-      col.querySelector('.count').textContent = list.length + ' card';
-      addDndHandlers(lane, key);
-    });
+  function clampChildToParent(child, parent){
+    const pImp = effImportance(parent, 5);
+    const pDue = parent.due || null;
+    if(child.importance!=null && child.importance > pImp) child.importance = pImp;
+    if(pDue && child.due && child.due > pDue) child.due = pDue;
   }
 
-  function renderCard(column, c){
-    const node = tpl.content.firstElementChild.cloneNode(true);
-    node.dataset.id = c.id;
-    node.querySelector('.title').value = c.title;
-    node.querySelector('.role').value = c.role||'';
-    node.querySelector('.importance').value = c.importance||'';
-    node.querySelector('.due').value = c.due||'';
-    node.querySelector('.notes').value = c.notes||'';
-    node.querySelector('.linkLT').value = c.linkLT||'';
-    node.querySelector('.state').textContent = prettyState(c.state);
-    node.querySelector('.id').textContent = 'ID ' + c.id;
-    node.addEventListener('dragstart', e=>{
-      e.dataTransfer.setData('text/plain', JSON.stringify({ id:c.id, from:column }));
-      requestAnimationFrame(()=> node.classList.add('ghost'));
-    });
-    node.addEventListener('dragend', ()=> node.classList.remove('ghost'));
-
-    node.querySelectorAll('input,textarea,select').forEach(inp=>{
-      inp.addEventListener('input', ()=>{
-        const ref = findCard(column, c.id);
-        ref.title = node.querySelector('.title').value;
-        ref.role = node.querySelector('.role').value;
-        ref.importance = node.querySelector('.importance').value;
-        ref.due = node.querySelector('.due').value;
-        ref.notes = node.querySelector('.notes').value;
-        ref.linkLT = node.querySelector('.linkLT').value;
-        ref.state = node.querySelector('.stateSelect').value || ref.state;
-        node.querySelector('.state').textContent = prettyState(ref.state);
-        persist();
+  function cascadeAfterParentChange(){
+    // Se cambiano importance/due di LT ⇒ adegua ST e Task; se cambiano di ST ⇒ adegua Task.
+    state.roles.forEach(r=>{
+      r.lt_goals.forEach(lt=>{
+        lt.st_goals.forEach(st=>{
+          clampChildToParent(st, lt);
+          st.tasks.forEach(t=> clampChildToParent(t, st.due?st:lt));
+        });
       });
     });
-    node.querySelector('.stateSelect').value = c.state;
-    node.querySelector('.del').addEventListener('click', ()=>{ removeCard(column,c.id); persist(); });
-    return node;
   }
 
-  function findCard(column,id){ return state[column].find(x=>x.id===id); }
-  function removeCard(column,id){ state[column] = state[column].filter(x=>x.id!==id); }
-  function prettyState(s){ return s==='doing'?'In corso': s==='done'?'Fatto':'Da fare'; }
+  /********
+   * TABS *
+   ********/
+  const tabs = [
+    {id:'roles', label:'Ruoli'},
+    {id:'lt', label:'Obiettivi a lungo termine'},
+    {id:'st', label:'Obiettivi a breve termine'},
+    {id:'tasks', label:'Attività'},
+    {id:'dash', label:'Dashboard'}
+  ];
+  let activeTab = 'roles';
 
-  function matchesFilters(c){
-    const q = search.value.trim().toLowerCase();
-    if(q && ![c.title,c.role,c.notes,c.linkLT].join(' ').toLowerCase().includes(q)) return false;
-    if(roleFilter.value && c.role !== roleFilter.value) return false;
-    if(importanceFilter.value && c.importance !== importanceFilter.value) return false;
-    if(statusFilter.value && c.state !== statusFilter.value) return false;
-    return true;
-  }
+  /* UI Refs */
+  const tabsEl = document.getElementById('tabs');
+  const viewEl = document.getElementById('view');
 
-  // --- Drag & Drop sulle lane ---
-  function addDndHandlers(lane, targetKey){
-    lane.addEventListener('dragover', e=>{ e.preventDefault(); });
-    lane.addEventListener('drop', e=>{
-      e.preventDefault();
-      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-      if(!data) return;
-      const fromList = state[data.from];
-      const item = fromList.find(x=>x.id===data.id);
-      if(!item) return;
-      if(data.from!==targetKey){
-        state[data.from] = fromList.filter(x=>x.id!==data.id);
-        state[targetKey].push(item);
-      }
-      persist();
+  function renderTabs(){
+    tabsEl.innerHTML = '';
+    tabs.forEach(t=>{
+      const b = document.createElement('button');
+      b.className = 'tab' + (activeTab===t.id?' active':'');
+      b.textContent = t.label;
+      b.onclick = ()=>{ activeTab = t.id; render(); };
+      tabsEl.appendChild(b);
     });
   }
 
-  // --- Azioni globali ---
-  addBtn.onclick = ()=>{
-    const key = targetSelect.value;
-    state[key].push(card(key,'', '', '', '', 'todo'));
-    persist();
-  };
-  search.oninput = roleFilter.oninput = importanceFilter.oninput = statusFilter.oninput = render;
+  function render(){
+    renderTabs();
+    if(activeTab==='roles') return renderRoles();
+    if(activeTab==='lt') return renderLT();
+    if(activeTab==='st') return renderST();
+    if(activeTab==='tasks') return renderTasks();
+    if(activeTab==='dash') return renderDash();
+  }
 
-  document.getElementById('clear').onclick = ()=>{
-    if(confirm('Sicuro di azzerare la board?')){ state = defaultState(); persist(); }
-  };
+  /*******************
+   * UTIL GENERICI UI *
+   *******************/
+    function makeTable(columns, rows){
+      // wrapper per evitare tagli su viewport stretti
+      const wrap = document.createElement('div');
+      wrap.className = 'table-wrap';
+      wrap.style.overflowX = 'auto';
 
-  // --- Export / Import JSON ---
+      const table = document.createElement('table');
+      const thead = document.createElement('thead');
+      const trh = document.createElement('tr');
+
+      let sortIndex = -1; // nessuna colonna inizialmente
+      let sortDir = 1;    // 1 = asc, -1 = desc
+
+      function defaultCmp(a,b){
+        if(a==null && b==null) return 0;
+        if(a==null) return -1;
+        if(b==null) return 1;
+        return (a>b) - (a<b);
+      }
+
+      function applySort(){
+        if(sortIndex < 0) return;
+        const col = columns[sortIndex];
+        const cmp = col.sort || ((ra,rb)=> defaultCmp(col.key?.(ra), col.key?.(rb)));
+        rows.sort((a,b)=> sortDir * cmp(a,b));
+      }
+
+      columns.forEach((col, idx)=>{
+        const th = document.createElement('th');
+        th.textContent = col.label;
+        // sortable se c'è col.key o col.sort
+        if(col.key || col.sort){
+          th.classList.add('sortable');
+          th.onclick = ()=>{
+            if(sortIndex === idx){ sortDir = -sortDir; } else { sortIndex = idx; sortDir = 1; }
+            // aggiorna freccine
+            [...trh.children].forEach((el,i)=>{
+              el.classList.remove('asc','desc');
+              if(i===sortIndex) el.classList.add(sortDir===1 ? 'asc' : 'desc');
+            });
+            applySort();
+            mountBody();
+          };
+        }
+        trh.appendChild(th);
+      });
+      thead.appendChild(trh);
+
+      const tbody = document.createElement('tbody');
+      function mountBody(){
+        tbody.innerHTML = '';
+        rows.forEach(r=>{
+          const tr = document.createElement('tr');
+          columns.forEach(col=>{
+            const td = document.createElement('td');
+            td.appendChild(col.render(r));
+            tr.appendChild(td);
+          });
+          tbody.appendChild(tr);
+        });
+      }
+      applySort();
+      mountBody();
+
+      table.appendChild(thead);
+      table.appendChild(tbody);
+      wrap.appendChild(table);
+      return wrap;
+    }
+
+
+  function selectRole(value){
+    const sel = document.createElement('select');
+    state.roles.forEach(r=>{ const o = document.createElement('option'); o.value=r.id; o.textContent=r.title; sel.appendChild(o); });
+    if(value) sel.value = value;
+    return sel;
+  }
+  function selectLT(roleId, value){
+    const sel = document.createElement('select');
+    const role = state.roles.find(r=>r.id===roleId);
+    (role?role.lt_goals:[]).forEach(g=>{ const o=document.createElement('option'); o.value=g.id; o.textContent=g.title; sel.appendChild(o); });
+    if(value) sel.value=value;
+    return sel;
+  }
+  function inputText(v, placeholder, on){ const i=document.createElement('input'); i.type='text'; i.value=v||''; if(placeholder) i.placeholder=placeholder; if(on) i.oninput=()=>on(i.value); return i; }
+  function inputInt(v,on){ const i=document.createElement('input'); i.type='number'; i.min='1'; i.max='5'; i.step='1'; i.value=(v??''); i.oninput=()=>on(i.value===''?null:toInt(i.value)); return i; }
+  function inputDate(v,on){ const i=document.createElement('input'); i.type='date'; i.value=v||''; i.oninput=()=>on(i.value||null); return i; }
+  function textarea(v,on){ const t=document.createElement('textarea'); t.value=v||''; t.oninput=()=>on(t.value); return t; }
+  function btn(label,cls,cb){ const b=document.createElement('button'); b.textContent=label; if(cls) b.className=cls; b.onclick=cb; return b; }
+
+  function confirmDelete(msg){ return confirm(msg||'Sei sicuro? Questa azione è irreversibile.'); }
+
+  function findLTById(id){ for(const r of state.roles){ const g=r.lt_goals.find(x=>x.id===id); if(g) return {role:r, lt:g}; } return null; }
+  function findSTById(id){ for(const r of state.roles){ for(const lt of r.lt_goals){ const s=lt.st_goals.find(x=>x.id===id); if(s) return {role:r, lt, st:s}; } } return null; }
+  function findTaskById(id){ for(const r of state.roles){ for(const lt of r.lt_goals){ for(const st of lt.st_goals){ const t=st.tasks.find(x=>x.id===id); if(t) return {role:r, lt, st, task:t}; } } } return null; }
+
+  /***********
+   * RUOLI   *
+   ***********/
+  function renderRoles(){
+    viewEl.innerHTML='';
+    const rows = state.roles.slice();
+    const table = makeTable([
+      {
+        label:'Titolo',
+        render:r=> inputText(r.title,'Titolo',v=>{ r.title=v; persist(); }),
+        key:r=> (r.title||'').toLowerCase()
+      },
+      {
+        label:'Importanza (1-5)',
+        render:r=> inputInt(r.importance,v=>{ r.importance=toInt(v); persist(); }),
+        key:r=> r.importance||0
+      },
+      {
+        label:'Azioni',
+        render:r=>{
+          const div=document.createElement('div'); div.className='controls';
+          div.appendChild(btn('+ LT','',()=>{ r.lt_goals.push(mkLT('Nuovo obiettivo LT','',3,datePlus(90))); persist(); }));
+          div.appendChild(btn('Elimina','',()=>{ if(!confirmDelete('Eliminare ruolo e tutti i figli?')) return; state.roles = state.roles.filter(x=>x.id!==r.id); persist(); render(); }));
+          return div;
+        }
+      }
+    ], rows);
+
+
+    const bar = document.createElement('div'); bar.className='controls';
+    bar.appendChild(btn('+ Ruolo','primary',()=>{ state.roles.push(mkRole('Nuovo ruolo',3)); persist(); render(); }));
+
+    viewEl.appendChild(bar);
+    viewEl.appendChild(table);
+  }
+
+  /*****************************
+   * OBIETTIVI LUNGO TERMINE   *
+   *****************************/
+  function renderLT(){
+    viewEl.innerHTML='';
+    const rows = [];
+    state.roles.forEach(r=> r.lt_goals.forEach(lt=> rows.push({role:r,lt})) );
+
+    const table = makeTable([
+      {
+        label:'Ruolo',
+        render:row=>{
+          const sel = selectRole(row.role.id);
+          sel.oninput=()=>{
+            const from=row.role, to=state.roles.find(x=>x.id===sel.value);
+            if(from.id===to.id) return;
+            from.lt_goals = from.lt_goals.filter(x=>x.id!==row.lt.id);
+            to.lt_goals.push(row.lt);
+            row.role = to;
+            persist();
+            render();
+          };
+          return sel;
+        },
+        key:row=> (row.role.title||'').toLowerCase()
+      },
+      {
+        label:'Titolo',
+        render:row=> inputText(row.lt.title,'Titolo',v=>{ row.lt.title=v; persist(); }),
+        key:row=> (row.lt.title||'').toLowerCase()
+      },
+      {
+        label:'Descrizione',
+        render:row=> textarea(row.lt.description,v=>{ row.lt.description=v; persist(); })
+      },
+      {
+        label:'Importanza (1-5)',
+        render:row=> inputInt(row.lt.importance,v=>{ row.lt.importance=toInt(v); cascadeAfterParentChange(); persist(); }),
+        key:row=> row.lt.importance||0
+      },
+      {
+        label:'Scadenza',
+        render:row=> inputDate(row.lt.due,v=>{ row.lt.due=v||today(); cascadeAfterParentChange(); persist(); }),
+        key:row=> row.lt.due||''
+      },
+      {
+        label:'Azioni',
+        render:row=>{
+          const d=document.createElement('div'); d.className='controls';
+          d.appendChild(btn('+ BT','',()=>{ row.lt.st_goals.push(mkST('Nuovo obiettivo BT','')); persist(); }));
+          d.appendChild(btn('Elimina','',()=>{
+            if(!confirmDelete('Eliminare obiettivo LT e tutti i figli?')) return;
+            row.role.lt_goals = row.role.lt_goals.filter(x=>x.id!==row.lt.id);
+            persist();
+            render();
+          }));
+          return d;
+        }
+      }
+    ], rows);
+
+
+    const bar=document.createElement('div'); bar.className='controls';
+    bar.appendChild(btn('+ Obiettivo LT','primary',()=>{
+      if(!state.roles.length){ alert('Prima crea almeno un Ruolo.'); return; }
+      // per default sul primo ruolo
+      state.roles[0].lt_goals.push(mkLT('Nuovo obiettivo LT','',3,datePlus(120)));
+      persist();
+      render();
+    }));
+
+    viewEl.appendChild(bar);
+    viewEl.appendChild(table);
+  }
+
+  /*****************************
+   * OBIETTIVI BREVE TERMINE   *
+   *****************************/
+  function renderST(){
+    viewEl.innerHTML='';
+    const rows=[];
+    state.roles.forEach(r=> r.lt_goals.forEach(lt=> lt.st_goals.forEach(st=> rows.push({role:r,lt,st}))));
+
+    const table = makeTable([
+      {
+        label:'Ruolo',
+        render:row=>{
+          const sel=selectRole(row.role.id);
+          sel.oninput=()=>{
+            const to=state.roles.find(x=>x.id===sel.value);
+            if(to.id===row.role.id) return;
+            row.lt.st_goals = row.lt.st_goals.filter(x=>x.id!==row.st.id);
+            if(!to.lt_goals.length) to.lt_goals.push(mkLT('Auto creato','',row.lt.importance,row.lt.due));
+            to.lt_goals[0].st_goals.push(row.st);
+            row.role=to; row.lt=to.lt_goals[0];
+            clampChildToParent(row.st,row.lt); cascadeAfterParentChange(); persist(); render();
+          };
+          return sel;
+        },
+        key:row=> (row.role.title||'').toLowerCase()
+      },
+      {
+        label:'LT',
+        render:row=>{
+          const sel=selectLT(row.role.id,row.lt.id);
+          sel.oninput=()=>{
+            const to=row.role.lt_goals.find(x=>x.id===sel.value);
+            if(!to) return;
+            row.lt.st_goals = row.lt.st_goals.filter(x=>x.id!==row.st.id);
+            to.st_goals.push(row.st);
+            row.lt=to;
+            clampChildToParent(row.st,row.lt); cascadeAfterParentChange(); persist();
+          };
+          return sel;
+        },
+        key:row=> (row.lt.title||'').toLowerCase()
+      },
+      {
+        label:'Titolo',
+        render:row=> inputText(row.st.title,'Titolo',v=>{ row.st.title=v; persist(); }),
+        key:row=> (row.st.title||'').toLowerCase()
+      },
+      {
+        label:'Descrizione',
+        render:row=> textarea(row.st.description,v=>{ row.st.description=v; persist(); })
+      },
+      {
+        label:'Importanza (ereditata se vuota)',
+        render:row=> inputInt(row.st.importance,v=>{ row.st.importance=v; clampChildToParent(row.st,row.lt); cascadeAfterParentChange(); persist(); }),
+        key:row=> effImportance(row.st,row.lt.importance)
+      },
+      {
+        label:'Scadenza (ereditata se vuota)',
+        render:row=> inputDate(row.st.due,v=>{ row.st.due=v; clampChildToParent(row.st,row.lt); cascadeAfterParentChange(); persist(); }),
+        key:row=> effDue(row.st,row.lt.due)||''
+      },
+      {
+        label:'Azioni',
+        render:row=>{
+          const d=document.createElement('div'); d.className='controls';
+          d.appendChild(btn('+ Task','',()=>{ row.st.tasks.push(mkTask('Nuova attività','')); persist(); }));
+          d.appendChild(btn('Elimina','',()=>{ if(!confirmDelete('Eliminare obiettivo BT e attività figlie?')) return; row.lt.st_goals = row.lt.st_goals.filter(x=>x.id!==row.st.id); persist(); render(); }));
+          return d;
+        }
+      }
+    ], rows);
+
+
+    const bar=document.createElement('div'); bar.className='controls';
+    bar.appendChild(btn('+ Obiettivo BT','primary',()=>{
+      if(!state.roles.length){ alert('Crea prima un Ruolo e un LT.'); return; }
+      const r = state.roles[0]; if(!r.lt_goals.length){ r.lt_goals.push(mkLT('Nuovo LT','',3,datePlus(120))); }
+      r.lt_goals[0].st_goals.push(mkST('Nuovo obiettivo BT',''));
+      persist();
+      render();
+    }));
+    viewEl.appendChild(bar);
+    viewEl.appendChild(table);
+  }
+
+  /*************
+   * ATTIVITÀ  *
+   *************/
+  function renderTasks(){
+    viewEl.innerHTML='';
+    const rows=[];
+    state.roles.forEach(r=> r.lt_goals.forEach(lt=> lt.st_goals.forEach(st=> st.tasks.forEach(task=> rows.push({role:r,lt,st,task})))));
+
+    const table = makeTable([
+      {
+        label:'Ruolo',
+        render:row=>{
+          const sel=selectRole(row.role.id);
+          sel.oninput=()=>{
+            const to=state.roles.find(x=>x.id===sel.value);
+            if(to.id===row.role.id) return;
+            row.st.tasks = row.st.tasks.filter(x=>x.id!==row.task.id);
+            if(!to.lt_goals.length) to.lt_goals.push(mkLT('Auto creato','',row.lt.importance,row.lt.due));
+            const tgtLT = to.lt_goals[0];
+            if(!tgtLT.st_goals.length) tgtLT.st_goals.push(mkST('Auto creato','',row.st.importance,row.st.due));
+            tgtLT.st_goals[0].tasks.push(row.task);
+            row.role=to; row.lt=tgtLT; row.st=tgtLT.st_goals[0];
+            clampChildToParent(row.task,row.st.due?row.st:row.lt); persist(); render();
+          };
+          return sel;
+        },
+        key:row=> (row.role.title||'').toLowerCase()
+      },
+      {
+        label:'LT',
+        render:row=>{
+          const sel=selectLT(row.role.id,row.lt.id);
+          sel.oninput=()=>{
+            const to=row.role.lt_goals.find(x=>x.id===sel.value);
+            if(!to) return;
+            row.st.tasks = row.st.tasks.filter(x=>x.id!==row.task.id);
+            if(!to.st_goals.length) to.st_goals.push(mkST('Auto creato','',row.st.importance,row.st.due));
+            to.st_goals[0].tasks.push(row.task);
+            row.lt=to; row.st=to.st_goals[0];
+            clampChildToParent(row.task,row.st.due?row.st:row.lt); persist();
+          };
+          return sel;
+        },
+        key:row=> (row.lt.title||'').toLowerCase()
+      },
+      {
+        label:'BT',
+        render:row=>{
+          const sel=document.createElement('select');
+          row.lt.st_goals.forEach(s=>{ const o=document.createElement('option'); o.value=s.id; o.textContent=s.title; sel.appendChild(o); });
+          sel.value=row.st.id;
+          sel.oninput=()=>{
+            const to=row.lt.st_goals.find(x=>x.id===sel.value);
+            row.st.tasks = row.st.tasks.filter(x=>x.id!==row.task.id);
+            to.tasks.push(row.task);
+            row.st=to;
+            clampChildToParent(row.task,row.st.due?row.st:row.lt); persist();
+          };
+          return sel;
+        },
+        key:row=> (row.st.title||'').toLowerCase()
+      },
+      {
+        label:'Titolo',
+        render:row=> inputText(row.task.title,'Titolo',v=>{ row.task.title=v; persist(); }),
+        key:row=> (row.task.title||'').toLowerCase()
+      },
+      {
+        label:'Descrizione',
+        render:row=> textarea(row.task.description,v=>{ row.task.description=v; persist(); })
+      },
+      {
+        label:'Importanza (ereditata se vuota)',
+        render:row=> inputInt(row.task.importance,v=>{ row.task.importance=v; clampChildToParent(row.task,row.st.due?row.st:row.lt); persist(); }),
+        key:row=> effImportance(row.task, effImportance(row.st,row.lt.importance))
+      },
+      {
+        label:'Scadenza (ereditata se vuota)',
+        render:row=> inputDate(row.task.due,v=>{ row.task.due=v; clampChildToParent(row.task,row.st.due?row.st:row.lt); persist(); }),
+        key:row=> effDue(row.task, effDue(row.st,row.lt.due))||''
+      },
+      {
+        label:'Azioni',
+        render:row=>{
+          const d=document.createElement('div'); d.className='controls';
+          d.appendChild(btn('Elimina','',()=>{ if(!confirmDelete('Eliminare attività?')) return; row.st.tasks = row.st.tasks.filter(x=>x.id!==row.task.id); persist(); render(); }));
+          return d;
+        }
+      }
+    ], rows);
+
+
+    const bar=document.createElement('div'); bar.className='controls';
+    bar.appendChild(btn('+ Attività','primary',()=>{
+      if(!state.roles.length){ alert('Crea prima Ruolo > LT > BT'); return; }
+      const r=state.roles[0]; if(!r.lt_goals.length) r.lt_goals.push(mkLT('Nuovo LT','',3,datePlus(120)));
+      const lt=r.lt_goals[0]; if(!lt.st_goals.length) lt.st_goals.push(mkST('Nuovo BT',''));
+      lt.st_goals[0].tasks.push(mkTask('Nuova attività',''));
+      persist();
+      render();
+    }));
+    viewEl.appendChild(bar);
+    viewEl.appendChild(table);
+  }
+
+  /****************
+   * DASHBOARD    *
+   ****************/
+  function renderDash(){
+    viewEl.innerHTML='';
+    const wrap=document.createElement('div'); wrap.className='cards';
+
+    // LT cards (imminenti)
+    const lts=[]; state.roles.forEach(r=> r.lt_goals.forEach(lt=> lts.push({role:r,lt})));
+    lts.sort((a,b)=> (a.lt.due||'').localeCompare(b.lt.due||''));
+
+    lts.slice(0,8).forEach(row=>{
+      wrap.appendChild(cardLT(row));
+    });
+
+    // Tasks urgenti (entro 14gg)
+    const soonTasks=[]; state.roles.forEach(r=> r.lt_goals.forEach(lt=> lt.st_goals.forEach(st=> st.tasks.forEach(task=>{
+      const due = effDue(task, effDue(st, lt.due));
+      if(due){ const diff = (new Date(due) - new Date())/86400000; if(diff<=14) soonTasks.push({role:r,lt,st,task,due}); }
+    }))));
+    soonTasks.sort((a,b)=> (a.due||'').localeCompare(b.due||''));
+
+    soonTasks.slice(0,8).forEach(row=> wrap.appendChild(cardTask(row)));
+
+    viewEl.appendChild(wrap);
+  }
+
+  function cardLT({role,lt}){
+    const c=document.createElement('article'); c.className='card';
+    const h=document.createElement('div'); h.className='title'; h.textContent=lt.title;
+    const meta=document.createElement('div'); meta.innerHTML = `<span class="badge">Ruolo: ${escapeHtml(role.title)}</span> <span class="badge">Imp: ${lt.importance}</span> <span class="badge">Scadenza: ${escapeHtml(lt.due||'-')}</span>`;
+    const p=document.createElement('div'); p.textContent=lt.description||'—';
+    const go=btn('Vai a LT','',()=>{ activeTab='lt'; render(); });
+    c.append(h,meta,p,go); return c;
+  }
+  function cardTask({role,lt,st,task,due}){
+    const c=document.createElement('article'); c.className='card';
+    const h=document.createElement('div'); h.className='title'; h.textContent=task.title;
+    const meta=document.createElement('div'); meta.innerHTML = `<span class="badge">${escapeHtml(role.title)} › ${escapeHtml(lt.title)} › ${escapeHtml(st.title)}</span> <span class="badge">Imp: ${effImportance(task,effImportance(st,lt.importance))}</span> <span class="badge">Scadenza: ${escapeHtml(due||'-')}</span>`;
+    const p=document.createElement('div'); p.textContent=task.description||'—';
+    const go=btn('Vai a Attività','',()=>{ activeTab='tasks'; render(); });
+    c.append(h,meta,p,go); return c;
+  }
+
+  /****************
+   * UTIL VARI    *
+   ****************/
+  function escapeHtml(s){
+    return (s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]));
+  }
+
+  /****************************
+   * EXPORT / IMPORT / FILE   *
+   ****************************/
   document.getElementById('export').onclick = ()=>{
     const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
     const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'kanban-covey.json' });
@@ -303,13 +686,13 @@
   document.getElementById('importBtn').onclick = ()=> filePicker.click();
   filePicker.onchange = async (e)=>{
     const file = e.target.files[0]; if(!file) return;
-    try { const text = await file.text(); const data = JSON.parse(text); if(validate(data)){ state = data; persist(); } else alert('JSON non valido'); }
+    try { const text = await file.text(); const data = JSON.parse(text); if(validate(data)){ state = data; persist(); render(); } else alert('JSON non valido'); }
     catch(err){ alert('Errore import: '+err.message); }
     finally{ filePicker.value=''; }
   };
-  function validate(data){ return ['roles','lt','weekly','agenda','nextId'].every(k=>k in data); }
+  function validate(data){ return data && Array.isArray(data.roles) && 'nextId' in data; }
 
-  // --- File System Access API (Chrome/Edge) ---
+  // File System Access API (Chrome/Edge)
   const supportsFSA = 'showSaveFilePicker' in window && 'showOpenFilePicker' in window;
   async function saveToFile(){
     try{
@@ -331,17 +714,24 @@
       const file = await handle.getFile();
       const text = await file.text();
       const data = JSON.parse(text);
-      if(validate(data)){ state = data; persist(); }
+      if(validate(data)){ state = data; persist(); render(); }
       else alert('JSON non valido');
     }catch(err){ if(err.name!=='AbortError') alert('Errore apertura: '+err.message); }
   }
   document.getElementById('saveFile').onclick = saveToFile;
   document.getElementById('openFile').onclick = openFromFile;
 
-  // === Google Drive (opzionale) ===
+  document.getElementById('clear').onclick = ()=>{
+    if(confirm('Sicuro di azzerare tutto?')){ state = defaultState(); persist(); render(); }
+  };
+
+  /********************
+   * GOOGLE DRIVE     *
+   * (codice preserv.)*
+   ********************/
   const GD = {
-    CLIENT_ID: 'REPLACE_ME_CLIENT_ID.apps.googleusercontent.com',
-    API_KEY: 'REPLACE_ME_API_KEY',
+    CLIENT_ID: localStorage.getItem(LS_GD_CLIENT_ID) || '',
+    API_KEY: localStorage.getItem(LS_GD_API_KEY) || '',
     DISCOVERY_DOCS: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
     SCOPES: 'https://www.googleapis.com/auth/drive.file',
     tokenClient: null,
@@ -357,119 +747,131 @@
 
   function updateDriveUI(){
     driveStatus.textContent = GD.signedIn ? 'Drive: connesso' : 'Drive: offline';
-    driveOpenBtn.disabled = !(GD.signedIn && GD.gapiLoaded);
-    driveSaveBtn.disabled = !(GD.signedIn && GD.gapiLoaded);
+    driveOpenBtn.disabled = !(GD.signedIn);
+    driveSaveBtn.disabled = !(GD.signedIn);
+  }
+  function saveCredsToLS(){ localStorage.setItem(LS_GD_CLIENT_ID, GD.CLIENT_ID); localStorage.setItem(LS_GD_API_KEY, GD.API_KEY); }
+  function askForCreds(){
+    const cid = prompt('Inserisci il tuo Google OAuth CLIENT_ID (tipo ...apps.googleusercontent.com):', GD.CLIENT_ID || '');
+    if(!cid) return false;
+    const api = prompt('Inserisci la tua Google API KEY:', GD.API_KEY || '');
+    if(!api) return false;
+    GD.CLIENT_ID = cid.trim(); GD.API_KEY = api.trim(); saveCredsToLS();
+    return true;
   }
 
+  async function canFetchDiscovery() {
+    const u = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest?key=' + encodeURIComponent(GD.API_KEY);
+    try { const res = await fetch(u, { cache: 'no-store' }); if (!res.ok) return null; const ct = res.headers.get('content-type') || ''; if (!ct.includes('application/json')) return null; return GD.DISCOVERY_DOCS[0]; } catch { return null; }
+  }
+  async function initGapiWithRetry(maxRetries = 4) {
+    let attempt = 0; while (true) { try { await gapi.client.init({ apiKey: GD.API_KEY, discoveryDocs: GD.DISCOVERY_DOCS }); GD.gapiLoaded = true; updateDriveUI(); return; } catch (e) { attempt++; if (attempt >= maxRetries) throw e; await new Promise(r => setTimeout(r, 800 * Math.pow(2, attempt - 1))); } }
+  }
   function loadGapi(){
     return new Promise((resolve,reject)=>{
       if(GD.gapiLoaded) return resolve();
-      const s = document.createElement('script');
-      s.src = 'https://apis.google.com/js/api.js';
-      s.onload = ()=>{ gapi.load('client', async ()=>{ try{ await gapi.client.init({ apiKey: GD.API_KEY, discoveryDocs: GD.DISCOVERY_DOCS }); GD.gapiLoaded = true; updateDriveUI(); resolve(); }catch(e){ console.error('gapi init error', e); reject(e); } }); };
-      s.onerror = reject;
-      document.head.appendChild(s);
+      const s = document.createElement('script'); s.src = 'https://apis.google.com/js/api.js';
+      s.onload = async ()=>{ gapi.load('client', async ()=>{ try{ const ok = await canFetchDiscovery(); if(!ok) throw new Error('Discovery non raggiungibile.'); await initGapiWithRetry(); resolve(); }catch(e){ console.error('gapi init error', e); reject(e); } }); };
+      s.onerror = reject; document.head.appendChild(s);
     });
   }
   function loadGIS(){
     return new Promise((resolve,reject)=>{
       if(GD.gisLoaded) return resolve();
-      const s = document.createElement('script');
-      s.src = 'https://accounts.google.com/gsi/client';
+      const s = document.createElement('script'); s.src = 'https://accounts.google.com/gsi/client';
       s.onload = ()=>{ try{ GD.tokenClient = google.accounts.oauth2.initTokenClient({ client_id: GD.CLIENT_ID, scope: GD.SCOPES, callback: (resp)=>{ if(resp && resp.access_token){ GD.signedIn = true; updateDriveUI(); } } }); GD.gisLoaded = true; resolve(); }catch(e){ reject(e); } };
-      s.onerror = reject;
-      document.head.appendChild(s);
+      s.onerror = reject; document.head.appendChild(s);
     });
   }
   async function ensureDriveReady(){
-    if(GD.CLIENT_ID.startsWith('REPLACE_ME') || GD.API_KEY.startsWith('REPLACE_ME')){
-      alert('Per usare Google Drive, imposta CLIENT_ID e API_KEY nel codice.');
-      return false;
-    }
-    try{ await loadGapi(); await loadGIS(); return true; }
-    catch(e){ alert('Errore caricamento Google API: '+e.message); return false; }
+    if(location.protocol === 'file:'){ alert('Per usare Google Drive apri la pagina da http://localhost o https://'); return false; }
+    if(!GD.CLIENT_ID || !GD.API_KEY){ const ok = askForCreds(); if(!ok) return false; }
+    try { await loadGIS(); } catch(e){ alert('Errore GIS: ' + (e.message||e)); return false; }
+    try { await loadGapi(); } catch(e){ console.warn('Uso fallback REST (senza discovery):', e); }
+    return true;
   }
-  gBtn.onclick = async ()=>{ if(!(await ensureDriveReady())) return; GD.tokenClient.requestAccessToken({ prompt: 'consent' }); };
+  async function driveFetch(path, params = {}, method = 'GET', body = null) {
+    const tokenObj = google.accounts.oauth2.getToken?.();
+    const token = tokenObj && tokenObj.access_token;
+    if (!token) throw new Error('Nessun access token disponibile. Premi "Connetti Google".');
+    const url = new URL('https://www.googleapis.com/drive/v3/' + path);
+    Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, v));
+    const res = await fetch(url.toString(), { method, headers: { 'Authorization': 'Bearer ' + token, ...(body ? {'Content-Type':'application/json'} : {}) }, body: body ? JSON.stringify(body) : null });
+    if (!res.ok) throw new Error('Drive REST error ' + res.status + ': ' + await res.text());
+    return res.json();
+  }
+  async function listJsonFilesFallback(){ const q = "mimeType='application/json' and trashed=false"; return driveFetch('files', { q, fields: 'files(id,name,modifiedTime)', pageSize: '25' }); }
+  async function getFileContentFallback(fileId){ const tokenObj = google.accounts.oauth2.getToken?.(); const token = tokenObj && tokenObj.access_token; const url = 'https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(fileId) + '?alt=media'; const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } }); if (!res.ok) throw new Error('Download error ' + res.status); return await res.text(); }
+  async function uploadOrUpdateJsonFallback(name, content, fileId){
+    const boundary = '-------314159265358979323846';
+    const delimiter = '\r\n--' + boundary + '\r\n';
+    const closeDelim = '\r\n--' + boundary + '--';
+    const metadata = { name, mimeType: 'application/json' };
+    const body = delimiter + 'Content-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(metadata) + delimiter + 'Content-Type: application/json\r\n\r\n' + content + closeDelim;
+    const tokenObj = google.accounts.oauth2.getToken?.();
+    const token = tokenObj && tokenObj.access_token;
+    const method = fileId ? 'PATCH' : 'POST';
+    const path = fileId ? ('files/' + encodeURIComponent(fileId)) : 'files';
+    const res = await fetch('https://www.googleapis.com/upload/drive/v3/' + path + '?uploadType=multipart', { method, headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'multipart/related; boundary=' + boundary }, body });
+    if (!res.ok) throw new Error('Upload error ' + res.status + ': ' + await res.text());
+    const json = await res.json(); return json.id;
+  }
 
-  driveOpenBtn.onclick = async ()=>{
+  gBtn.onclick = async ()=>{ if(!(await ensureDriveReady())) return; try{ GD.tokenClient.requestAccessToken({ prompt: 'consent' }); } catch(e){ alert('Autorizzazione Google fallita: ' + (e.message||e)); } };
+
+  document.getElementById('driveOpen').onclick = async ()=>{
     try{
       if(!(await ensureDriveReady())) return;
-      const res = await gapi.client.drive.files.list({ q: "mimeType='application/json' and trashed=false", pageSize: 25, fields: 'files(id,name,modifiedTime)' });
-      const files = res.result.files || [];
+      let files = [];
+      if (GD.gapiLoaded && window.gapi?.client?.drive) {
+        try { const res = await gapi.client.drive.files.list({ q: "mimeType='application/json' and trashed=false", pageSize: 25, fields: 'files(id,name,modifiedTime)' }); files = res.result.files || []; } catch (e) { console.warn('gapi list fallita, passo a REST fallback:', e); }
+      }
+      if (!files.length) { const res = await listJsonFilesFallback(); files = res.files || []; }
       if(files.length===0){ alert('Nessun JSON trovato nel tuo Drive.'); return; }
       const nameList = files.map((f,i)=> `${i+1}) ${f.name} — ${new Date(f.modifiedTime).toLocaleString()}`).join('\n');
       const idx = prompt('Scegli file da aprire (numero):\n'+nameList);
-      const i = Number(idx)-1; if(!(i>=0 && i<files.length)) return;
-      const file = files[i];
-      const dl = await gapi.client.drive.files.get({ fileId: file.id, alt: 'media' });
-      const data = JSON.parse(dl.body);
-      if(validate(data)){ state = data; persist(); GD.currentFileId = file.id; alert('Aperto da Drive: '+file.name); }
-      else alert('JSON non valido');
-    }catch(e){ alert('Errore apertura Drive: '+((e.result && e.result.error && e.result.error.message) || e.message)); }
+      const i = Number(idx)-1; if(!(i>=0 && i<files.length)) return; const file = files[i];
+      let text; if (GD.gapiLoaded && window.gapi?.client?.drive) { try { const dl = await gapi.client.drive.files.get({ fileId: file.id, alt: 'media' }); text = dl.body; } catch (e) { console.warn('gapi download fallito, uso REST:', e); text = await getFileContentFallback(file.id); } } else { text = await getFileContentFallback(file.id); }
+      const data = JSON.parse(text); if(validate(data)){ state = data; persist(); render(); GD.currentFileId = file.id; alert('Aperto da Drive: '+file.name); } else alert('JSON non valido');
+    }catch(e){ alert('Errore apertura Drive: '+(e.message||e)); }
   };
 
-  driveSaveBtn.onclick = async ()=>{
+  document.getElementById('driveSave').onclick = async ()=>{
     try{
       if(!(await ensureDriveReady())) return;
       const fileName = 'kanban-covey.json';
-      const metadata = { name: fileName, mimeType: 'application/json' };
-      const boundary = '-------314159265358979323846';
-      const delimiter = '\r\n--' + boundary + '\r\n';
-      const closeDelim = '\r\n--' + boundary + '--';
       const content = JSON.stringify(state, null, 2);
-      const multipartBody =
-        delimiter + 'Content-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(metadata) +
-        delimiter + 'Content-Type: application/json\r\n\r\n' + content + closeDelim;
-
-      if(GD.currentFileId){
-        await gapi.client.request({
-          path: '/upload/drive/v3/files/' + encodeURIComponent(GD.currentFileId),
-          method: 'PATCH',
-          params: { uploadType: 'multipart' },
-          headers: { 'Content-Type': 'multipart/related; boundary=' + boundary },
-          body: multipartBody
-        });
-        alert('Aggiornato su Drive ✅');
-      } else {
-        const resp = await gapi.client.request({
-          path: '/upload/drive/v3/files',
-          method: 'POST',
-          params: { uploadType: 'multipart' },
-          headers: { 'Content-Type': 'multipart/related; boundary=' + boundary },
-          body: multipartBody
-        });
-        GD.currentFileId = resp.result && resp.result.id;
-        alert('Salvato su Drive ✅');
+      if (GD.gapiLoaded && window.gapi?.client?.drive) {
+        try {
+          if(GD.currentFileId){
+            const boundary = '-------314159265358979323846';
+            const delimiter = '\r\n--' + boundary + '\r\n';
+            const closeDelim = '\r\n--' + boundary + '--';
+            const metadata = { name: fileName, mimeType: 'application/json' };
+            const multipartBody = delimiter + 'Content-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(metadata) + delimiter + 'Content-Type: application/json\r\n\r\n' + content + closeDelim;
+            await gapi.client.request({ path: '/upload/drive/v3/files/' + encodeURIComponent(GD.currentFileId), method: 'PATCH', params: { uploadType: 'multipart' }, headers: { 'Content-Type': 'multipart/related; boundary=' + boundary }, body: multipartBody });
+            alert('Aggiornato su Drive ✅');
+          } else {
+            const boundary = '-------314159265358979323846';
+            const delimiter = '\r\n--' + boundary + '\r\n';
+            const closeDelim = '\r\n--' + boundary + '--';
+            const metadata = { name: fileName, mimeType: 'application/json' };
+            const multipartBody = delimiter + 'Content-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(metadata) + delimiter + 'Content-Type: application/json\r\n\r\n' + content + closeDelim;
+            const resp = await gapi.client.request({ path: '/upload/drive/v3/files', method: 'POST', params: { uploadType: 'multipart' }, headers: { 'Content-Type': 'multipart/related; boundary=' + boundary }, body: multipartBody });
+            GD.currentFileId = resp.result && resp.result.id; alert('Salvato su Drive ✅');
+          }
+          return;
+        } catch (e) { console.warn('gapi upload fallito, uso REST:', e); }
       }
-    }catch(e){ alert('Errore salvataggio Drive: '+((e.result && e.result.error && e.result.error.message) || e.message)); }
+      GD.currentFileId = await uploadOrUpdateJsonFallback(fileName, content, GD.currentFileId);
+      alert('Salvato su Drive (REST) ✅');
+    }catch(e){ alert('Errore salvataggio Drive: ' + (e.message||e)); }
   };
 
   updateDriveUI();
 
-  // --- Mini self-test (non invasivo) ---
-  (function selfTest(){
-    try{
-      console.assert(typeof escapeHtml === 'function', 'escapeHtml non è una funzione');
-      // Sanity su escapeHtml
-      const sample = `<tag>&"'</tag>`;
-      console.assert(escapeHtml(sample) === '&lt;tag&gt;&amp;&quot;&#39;&lt;/tag&gt;', 'escapeHtml fallisce');
-      console.assert(document.getElementById('roleFilter'), 'roleFilter mancante');
-      // prettyState
-      console.assert(prettyState('todo')==='Da fare' && prettyState('doing')==='In corso' && prettyState('done')==='Fatto', 'prettyState mapping errato');
-      // matchesFilters: set/restore
-      const _b = { s: search.value, r: roleFilter.value, i: importanceFilter.value, t: statusFilter.value };
-      search.value = 'abc'; roleFilter.value=''; importanceFilter.value=''; statusFilter.value='';
-      console.assert(matchesFilters({title:'abc', role:'X', notes:'', linkLT:'', importance:'', state:'todo'})===true, 'matchesFilters dovrebbe passare con query presente');
-      search.value = 'xyz';
-      console.assert(matchesFilters({title:'abc', role:'X', notes:'', linkLT:'', importance:'', state:'todo'})===false, 'matchesFilters dovrebbe fallire con query non corrispondente');
-      search.value = _b.s; roleFilter.value=_b.r; importanceFilter.value=_b.i; statusFilter.value=_b.t;
-      // Render non deve lanciare
-      render();
-      console.log('[SELFTEST] OK');
-    }catch(e){
-      console.error('[SELFTEST] Fallito:', e);
-    }
-  })();
+  // Avvio
+  render();
   </script>
 </body>
 </html>
