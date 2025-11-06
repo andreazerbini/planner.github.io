@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "Planner",
+    "slug": "planner-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "planner",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0b0f16"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0b0f16"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": ["expo-router"]
+  }
+}
