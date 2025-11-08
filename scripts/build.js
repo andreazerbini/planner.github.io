@@ -113,13 +113,46 @@ function build() {
 
   const modules = order.map((file) => {
     const { id, code } = moduleCache.get(file);
-    const safeCode = code.replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
-    return `'${id}': function(require, exports) {\n${safeCode}\n}`;
+    return { id, code };
   });
 
-  const bundle = `(() => {\n  const modules = {\n    ${modules.join(',\n    ')}\n  };\n  const cache = {};\n  function localRequire(id) {\n    if (cache[id]) {\n      return cache[id];\n    }\n    if (!modules[id]) {\n      throw new Error('Modulo non trovato: ' + id);\n    }\n    const module = { exports: {} };\n    cache[id] = module.exports;\n    modules[id](localRequire, module.exports);\n    return module.exports;\n  }\n  localRequire('${entryId}');\n})();\n`;
+  const indentLines = (lines, indent = '    ') =>
+    lines
+      .map((line) => `${indent}${line}`)
+      .join('\n');
 
-  fs.writeFileSync(outputFile, bundle, 'utf8');
+  const moduleBlocks = modules.map(({ id, code }) => {
+    const blockLines = [`'${id}': function(require, exports) {`];
+    const codeLines = code.split('\n');
+    blockLines.push(...codeLines);
+    blockLines.push('}');
+    return indentLines(blockLines);
+  });
+
+  const bundleLines = [
+    '(() => {',
+    '  const modules = {',
+    moduleBlocks.join(',\n'),
+    '  };',
+    '  const cache = {};',
+    '  function localRequire(id) {',
+    '    if (cache[id]) {',
+    '      return cache[id];',
+    '    }',
+    '    if (!modules[id]) {',
+    "      throw new Error('Modulo non trovato: ' + id);",
+    '    }',
+    '    const module = { exports: {} };',
+    '    cache[id] = module.exports;',
+    '    modules[id](localRequire, module.exports);',
+    '    return module.exports;',
+    '  }',
+    `  localRequire('${entryId}');`,
+    '})();',
+    ''
+  ];
+
+  fs.writeFileSync(outputFile, bundleLines.join('\n'), 'utf8');
 }
 
 build();
