@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' https://accounts.google.com https://apis.google.com https://www.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
+    />
+    <title>Kanban Covey</title>
+    <link rel="stylesheet" href="./styles/main.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="header-title">
+        <h1 class="app-name">Kanban Covey</h1>
+        <span class="tag">Ruoli → LT → BT → Attività</span>
+      </div>
+      <div class="actions" aria-label="Azioni principali">
+        <button type="button" id="export" class="action-btn">Esporta JSON</button>
+        <button type="button" id="importBtn" class="action-btn">Importa JSON</button>
+        <button type="button" id="saveFile" class="action-btn">Salva su file</button>
+        <button type="button" id="openFile" class="action-btn">Apri file</button>
+        <button type="button" id="gSignIn" class="action-btn">Connetti Google</button>
+        <button type="button" id="driveOpen" class="action-btn" disabled>Apri da Drive</button>
+        <button type="button" id="driveSave" class="action-btn" disabled>Salva su Drive</button>
+        <span id="driveStatus" class="tag" role="status" aria-live="polite">Drive: offline</span>
+        <button type="button" id="clear" class="action-btn danger">Azzera</button>
+      </div>
+    </header>
+
+    <nav class="tabs" id="tabs" aria-label="Navigazione viste"></nav>
+
+    <main id="view" class="main-view" tabindex="-1"></main>
+
+    <footer class="footer">
+      <p>
+        <strong>Salvataggio locale:</strong> automatico in <code>localStorage</code>. Puoi anche
+        <em>Esportare/Importare</em> JSON.
+      </p>
+      <p>
+        Su browser Chromium/Edge puoi usare <q>Salva su file</q> e <q>Apri file</q> (File System Access API) per lavorare
+        direttamente su un <code>.json</code> locale.
+      </p>
+      <p>
+        Opzionale: connessione a <strong>Google Drive</strong> (inserisci <em>Client ID</em> e <em>API Key</em>) per aprire/salvare il JSON.
+      </p>
+    </footer>
+
+    <input id="filePicker" type="file" accept="application/json" hidden />
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
