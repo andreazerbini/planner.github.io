@@ -1,877 +1,1903 @@
 <!doctype html>
 <html lang="it">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Kanban Covey – Tabs + Tabelle + Drive</title>
-  <style>
-    :root{
-  --bg:#0b0f16; --panel:#121826; --muted:#9aa4b2; --text:#e6edf3; --accent:#5eead4;
-  --card:#0f172a; --border:#263046; --warn:#f59e0b; --danger:#ef4444;
-  /* altezze reali */
-  --h-header:56px; 
-  --h-tabs:46px;
-  --sticky-top: calc(var(--h-header) + var(--h-tabs));
-}
-    *{box-sizing:border-box}
-    body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:linear-gradient(120deg,#0b0f16,#0a1322 60%,#0b0f16);color:var(--text)}
-    header{
-      display:flex;align-items:center;gap:.8rem;padding:1rem;
-      border-bottom:1px solid var(--border);
-      position:sticky; top:0; height:var(--h-header);
-      background:rgba(11,15,22,.7); backdrop-filter:blur(8px); z-index:20;
-    }
-    h1{font-size:1.05rem;margin:0;font-weight:700;letter-spacing:.2px}
-    .tag{padding:.25rem .5rem;border:1px solid var(--border);border-radius:999px;font-size:.75rem;color:var(--muted)}
-    .actions{margin-left:auto;display:flex;gap:.5rem;flex-wrap:wrap}
-    button,input,select{font:inherit}
-    button{border:1px solid var(--border);background:var(--panel);color:var(--text);padding:.55rem .75rem;border-radius:.75rem;cursor:pointer}
-    button:hover{border-color:#33405e}
-    .primary{border-color:transparent;background:linear-gradient(135deg,#12b3a6,#6ee7d2);color:#061317}
-    .primary:hover{filter:brightness(1.02)}
-    .danger{border-color:transparent;background:linear-gradient(135deg,#ef4444,#f59e0b);color:#2b100f}
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kanban Covey – Tabs + Tabelle + Drive</title>
+    <style>
+      :root {
+        --bg: #0b0f16;
+        --panel: #121826;
+        --muted: #9aa4b2;
+        --text: #e6edf3;
+        --accent: #5eead4;
+        --card: #0f172a;
+        --border: #263046;
+        --warn: #f59e0b;
+        --danger: #ef4444;
+        --h-header: 56px;
+        --h-tabs: 46px;
+        --sticky-top: calc(var(--h-header) + var(--h-tabs));
+      }
 
-    /* Tabs */
-    .tabs{
-      display:flex; gap:.5rem; padding:.6rem 1rem; align-items:center;
-      border-bottom:1px solid var(--border);
-      position:sticky; top:var(--h-header); height:var(--h-tabs);
-      background:rgba(11,15,22,.7); backdrop-filter:blur(8px); z-index:15;
-    }
-    .tab{padding:.45rem .75rem;border:1px solid var(--border);border-radius:.65rem;cursor:pointer;color:var(--muted)}
-    .tab.active{color:#061317;background:linear-gradient(135deg,#12b3a6,#6ee7d2);border-color:transparent}
+      * {
+        box-sizing: border-box;
+      }
 
-    main{padding:1rem;display:grid;gap:1rem}
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+        color: var(--text);
+        background: linear-gradient(120deg, #0b0f16, #0a1322 60%, #0b0f16);
+      }
 
-    /* Tabelle */
-    table{width:100%;border-collapse:separate;border-spacing:0;background:rgba(18,24,38,.7);border:1px solid var(--border);border-radius:.9rem;overflow:hidden}
-    thead th{
-      -- position:sticky; top:var(--sticky-top); z-index:10;
-      background:#121826; border-bottom:1px solid var(--border);
-      text-align:left; padding:.7rem .8rem; font-size:.85rem;
-      color:var(--muted); user-select:none; white-space:nowrap;
-    }
-    th.sortable::after{ content:" ▲▼"; opacity:.35; font-size:.7rem; }
-    th.sortable.asc::after{ content:" ▲"; opacity:.85; }
-    th.sortable.desc::after{ content:" ▼"; opacity:.85; }
-    tbody td{padding:.6rem .8rem;border-bottom:1px solid #1b2436}
-    tbody tr:hover{background:#0f1628}
-    tbody tr:last-child td{border-bottom:none}
-    th.sortable{cursor:pointer}
-    th.sortable::after{content:' \25B4\25BE';opacity:.35;font-size:.7rem}
-    .controls{display:flex;gap:.4rem;flex-wrap:wrap}
-    input[type="text"], textarea, select, input[type="date"], input[type="number"]{width:100%;background:#0b1324;border:1px solid var(--border);color:var(--text);padding:.45rem .5rem;border-radius:.5rem}
-    textarea{min-height:54px;resize:vertical}
-    .grid{display:grid;gap:1rem}
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        height: var(--h-header);
+        padding: 1rem;
+        border-bottom: 1px solid var(--border);
+        background: rgba(11, 15, 22, 0.7);
+        backdrop-filter: blur(8px);
+      }
 
-    /* Dashboard cards */
-    .cards{display:grid;grid-template-columns:repeat(4,minmax(240px,1fr));gap:1rem}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:.9rem;padding:.8rem;display:flex;flex-direction:column;gap:.45rem}
-    .badge{font-size:.7rem;border:1px solid var(--border);color:var(--muted);padding:.1rem .45rem;border-radius:.5rem}
-    .title{font-weight:700}
+      h1 {
+        margin: 0;
+        font-size: 1.05rem;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+      }
 
-    .footer{padding:1rem;color:var(--muted);font-size:.85rem;border-top:1px solid var(--border)}
+      .tag {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        color: var(--muted);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+      }
 
-    @media(max-width:1200px){.cards{grid-template-columns:repeat(2,minmax(240px,1fr))}}
-    @media(max-width:700px){.cards{grid-template-columns:1fr}}
-  </style>
-</head>
-<body>
-  <header>
-    <h1>Kanban Covey</h1>
-    <span class="tag">Ruoli → LT → BT → Attività</span>
-    <div class="actions">
-      <button id="export">Esporta JSON</button>
-      <button id="importBtn">Importa JSON</button>
-      <button id="saveFile">Salva su file</button>
-      <button id="openFile">Apri file</button>
-      <button id="gSignIn">Connetti Google</button>
-      <button id="driveOpen" disabled>Apri da Drive</button>
-      <button id="driveSave" disabled>Salva su Drive</button>
-      <span id="driveStatus" class="tag" title="Stato Google Drive">Drive: offline</span>
-      <button class="danger" id="clear">Azzera</button>
-    </div>
-  </header>
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-left: auto;
+      }
 
-  <nav class="tabs" id="tabs"></nav>
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+      }
 
-  <main id="view"></main>
+      button {
+        padding: 0.55rem 0.75rem;
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 0.75rem;
+        background: var(--panel);
+        cursor: pointer;
+      }
 
-  <div class="footer">
-    <strong>Salvataggio locale:</strong> automatico in <code>localStorage</code>. Puoi anche <em>Esportare/Importare</em> JSON.
-    Su browser Chromium/Edge puoi usare "Salva su file" e "Apri file" (File System Access API) per lavorare direttamente su un <code>.json</code> locale.
-    <br/>Opzionale: connessione a <strong>Google Drive</strong> (inserisci <em>Client ID</em> e <em>API Key</em>) per aprire/salvare il JSON.
-  </div>
+      button:hover {
+        border-color: #33405e;
+      }
 
-  <input id="filePicker" type="file" accept="application/json" hidden />
+      button.primary {
+        color: #061317;
+        border-color: transparent;
+        background: linear-gradient(135deg, #12b3a6, #6ee7d2);
+      }
 
-  <script>
-  /*******************
-   * STATO & MODELLO *
-   *******************/
-  const LS_KEY = 'covey_v2_domain_model';
-  const LS_GD_CLIENT_ID = 'covey_gd_client_id';
-  const LS_GD_API_KEY = 'covey_gd_api_key';
+      button.primary:hover {
+        filter: brightness(1.02);
+      }
 
-  /**
-   * Dominio
-   * role {id,title,importance:int, lt_goals:[lt]}
-   * lt {id,title,description,importance:int,due(yyyy-mm-dd), st_goals:[st]}
-   * st {id,title,description,importance?:int,due?:date, tasks:[task]}
-   * task {id,title,description,importance?:int,due?:date}
-   */
-  let state = loadState();
-  let currentFileHandle = null; // File System Access API
+      button.danger {
+        color: #2b100f;
+        border-color: transparent;
+        background: linear-gradient(135deg, #ef4444, #f59e0b);
+      }
 
-  function defaultState(){
-    return { nextId:1, roles:[] };
-  }
-  function loadState(){
-    try{ return JSON.parse(localStorage.getItem(LS_KEY)) || seed(); }
-    catch{ return seed(); }
-  }
-  function seed(){
-    // Seed iniziale senza dipendere da mk* (evita TDZ) e senza chiamare render/persist
-    const s = { nextId:1, roles:[] };
-    // helper locali
-    const today = ()=> new Date().toISOString().slice(0,10);
-    function datePlus(days){ const d=new Date(); d.setDate(d.getDate()+days); return d.toISOString().slice(0,10); }
-    const nid = ()=> String(s.nextId++);
+      nav.tabs {
+        position: sticky;
+        top: var(--h-header);
+        z-index: 15;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        height: var(--h-tabs);
+        padding: 0.6rem 1rem;
+        border-bottom: 1px solid var(--border);
+        background: rgba(11, 15, 22, 0.7);
+        backdrop-filter: blur(8px);
+      }
 
-    const r1 = { id:nid(), title:'Team Leader', importance:3, lt_goals:[] };
-    const lt1 = { id:nid(), title:'Introdurre ML nel prodotto', description:'Roadmap ML (RAG, valutazione, privacy)', importance:5, due: datePlus(120), st_goals:[] };
-    const st1 = { id:nid(), title:'PoC RAG su documentale', description:'Pipeline base eval + feedback', importance:null, due:null, tasks:[] };
-    const t1  = { id:nid(), title:'Progettazione schema vector DB', description:'Definire spazio embedding e chunking', importance:4, due: datePlus(30) };
+      .tab {
+        padding: 0.45rem 0.75rem;
+        color: var(--muted);
+        border: 1px solid var(--border);
+        border-radius: 0.65rem;
+        cursor: pointer;
+        background: transparent;
+      }
 
-    st1.tasks.push(t1);
-    lt1.st_goals.push(st1);
-    r1.lt_goals.push(lt1);
-    s.roles.push(r1);
-    // niente persist() qui: verrà chiamato dopo che l'UI è pronta
-    return s;
-  }
-  function persist(s = state){ state = s; localStorage.setItem(LS_KEY, JSON.stringify(state)); }
-  const nextId = ()=> String(state.nextId++);
-  const mkRole = (title,importance)=>({id:nextId(), title, importance:toInt(importance,1), lt_goals:[]});
-  const mkLT = (title,description,importance,due)=>({id:nextId(), title, description:description||'', importance:toInt(importance,1), due:due||today(), st_goals:[]});
-  const mkST = (title,description,importance,due)=>({id:nextId(), title, description:description||'', importance:toIntNull(importance), due:due||null, tasks:[]});
-  const mkTask = (title,description,importance,due)=>({id:nextId(), title, description:description||'', importance:toIntNull(importance), due:due||null});
+      .tab.active {
+        color: #061317;
+        border-color: transparent;
+        background: linear-gradient(135deg, #12b3a6, #6ee7d2);
+      }
 
-  const today = ()=> new Date().toISOString().slice(0,10);
-  function datePlus(days){ const d = new Date(); d.setDate(d.getDate()+days); return d.toISOString().slice(0,10); }
-  const toInt = (v,def=1)=>{ const n = parseInt(v,10); return isNaN(n)?def:Math.max(1,Math.min(5,n)); };
-  const toIntNull = (v)=>{ if(v==null||v==='') return null; return toInt(v,1); };
+      main {
+        display: grid;
+        gap: 1rem;
+        padding: 1rem;
+      }
 
-  /****************
-   * VINCOLI/EREDI *
-   ****************/
-  function effImportance(node, parentImp){ return node.importance!=null ? toInt(node.importance,1) : parentImp; }
-  function effDue(node, parentDue){ return node.due || parentDue || null; }
+      table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        background: rgba(18, 24, 38, 0.7);
+        border: 1px solid var(--border);
+        border-radius: 0.9rem;
+        overflow: hidden;
+      }
 
-  function clampChildToParent(child, parent){
-    const pImp = effImportance(parent, 5);
-    const pDue = parent.due || null;
-    if(child.importance!=null && child.importance > pImp) child.importance = pImp;
-    if(pDue && child.due && child.due > pDue) child.due = pDue;
-  }
+      thead th {
+        /* position: sticky; */
+        top: var(--sticky-top);
+        z-index: 10;
+        padding: 0.7rem 0.8rem;
+        font-size: 0.85rem;
+        text-align: left;
+        white-space: nowrap;
+        color: var(--muted);
+        user-select: none;
+        background: #121826;
+        border-bottom: 1px solid var(--border);
+      }
 
-  function cascadeAfterParentChange(){
-    // Se cambiano importance/due di LT ⇒ adegua ST e Task; se cambiano di ST ⇒ adegua Task.
-    state.roles.forEach(r=>{
-      r.lt_goals.forEach(lt=>{
-        lt.st_goals.forEach(st=>{
-          clampChildToParent(st, lt);
-          st.tasks.forEach(t=> clampChildToParent(t, st.due?st:lt));
+      th.sortable {
+        cursor: pointer;
+      }
+
+      th.sortable::after {
+        margin-left: 0.25rem;
+        font-size: 0.7rem;
+        opacity: 0.35;
+        content: "▲▼";
+      }
+
+      th.sortable.asc::after {
+        content: "▲";
+        opacity: 0.85;
+      }
+
+      th.sortable.desc::after {
+        content: "▼";
+        opacity: 0.85;
+      }
+
+      tbody td {
+        padding: 0.6rem 0.8rem;
+        border-bottom: 1px solid #1b2436;
+      }
+
+      tbody tr:hover {
+        background: #0f1628;
+      }
+
+      tbody tr:last-child td {
+        border-bottom: none;
+      }
+
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+      }
+
+      input[type="text"],
+      input[type="number"],
+      input[type="date"],
+      select,
+      textarea {
+        width: 100%;
+        padding: 0.45rem 0.5rem;
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+        background: #0b1324;
+      }
+
+      textarea {
+        min-height: 54px;
+        resize: vertical;
+      }
+
+      .cards {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(4, minmax(240px, 1fr));
+      }
+
+      .card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+        padding: 0.8rem;
+        border: 1px solid var(--border);
+        border-radius: 0.9rem;
+        background: var(--card);
+      }
+
+      .badge {
+        display: inline-block;
+        padding: 0.1rem 0.45rem;
+        font-size: 0.7rem;
+        color: var(--muted);
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+      }
+
+      .title {
+        font-weight: 700;
+      }
+
+      .footer {
+        padding: 1rem;
+        font-size: 0.85rem;
+        color: var(--muted);
+        border-top: 1px solid var(--border);
+      }
+
+      @media (max-width: 1200px) {
+        .cards {
+          grid-template-columns: repeat(2, minmax(240px, 1fr));
+        }
+      }
+
+      @media (max-width: 700px) {
+        header {
+          align-items: flex-start;
+        }
+
+        .cards {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Kanban Covey</h1>
+      <span class="tag">Ruoli → LT → BT → Attività</span>
+      <div class="actions">
+        <button id="export">Esporta JSON</button>
+        <button id="importBtn">Importa JSON</button>
+        <button id="saveFile">Salva su file</button>
+        <button id="openFile">Apri file</button>
+        <button id="gSignIn">Connetti Google</button>
+        <button id="driveOpen" disabled>Apri da Drive</button>
+        <button id="driveSave" disabled>Salva su Drive</button>
+        <span id="driveStatus" class="tag" title="Stato Google Drive">Drive: offline</span>
+        <button class="danger" id="clear">Azzera</button>
+      </div>
+    </header>
+
+    <nav id="tabs" class="tabs"></nav>
+    <main id="view"></main>
+
+    <footer class="footer">
+      <strong>Salvataggio locale:</strong> automatico in <code>localStorage</code>.
+      Puoi anche <em>Esportare/Importare</em> JSON.
+      Su browser Chromium/Edge puoi usare "Salva su file" e "Apri file" (File System Access API).
+      <br />
+      Opzionale: connessione a <strong>Google Drive</strong> (inserisci <em>Client ID</em> e <em>API Key</em>) per aprire/salvare il JSON.
+    </footer>
+
+    <input id="filePicker" type="file" accept="application/json" hidden />
+
+    <script>
+      (() => {
+        "use strict";
+
+        // =============================================================
+        // Costanti e configurazione di base
+        // =============================================================
+        const STORAGE_KEYS = Object.freeze({
+          STATE: "covey_v2_domain_model",
+          GD_CLIENT_ID: "covey_gd_client_id",
+          GD_API_KEY: "covey_gd_api_key",
         });
-      });
-    });
-  }
 
-  /********
-   * TABS *
-   ********/
-  const tabs = [
-    {id:'roles', label:'Ruoli'},
-    {id:'lt', label:'Obiettivi a lungo termine'},
-    {id:'st', label:'Obiettivi a breve termine'},
-    {id:'tasks', label:'Attività'},
-    {id:'dash', label:'Dashboard'}
-  ];
-  let activeTab = 'roles';
+        const DEFAULT_FILE_NAME = "kanban-covey.json";
+        const GOOGLE_DISCOVERY_DOCS = [
+          "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest",
+        ];
+        const GOOGLE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 
-  /* UI Refs */
-  const tabsEl = document.getElementById('tabs');
-  const viewEl = document.getElementById('view');
+        const tabs = [
+          { id: "roles", label: "Ruoli" },
+          { id: "lt", label: "Obiettivi a lungo termine" },
+          { id: "st", label: "Obiettivi a breve termine" },
+          { id: "tasks", label: "Attività" },
+          { id: "dash", label: "Dashboard" },
+        ];
 
-  function renderTabs(){
-    tabsEl.innerHTML = '';
-    tabs.forEach(t=>{
-      const b = document.createElement('button');
-      b.className = 'tab' + (activeTab===t.id?' active':'');
-      b.textContent = t.label;
-      b.onclick = ()=>{ activeTab = t.id; render(); };
-      tabsEl.appendChild(b);
-    });
-  }
+        // =============================================================
+        // Stato applicativo e persistence layer
+        // =============================================================
+        const AppState = {
+          data: loadState(),
+          currentFileHandle: null,
+          persist() {
+            localStorage.setItem(
+              STORAGE_KEYS.STATE,
+              JSON.stringify(this.data)
+            );
+          },
+          replace(nextState) {
+            this.data = nextState;
+            this.persist();
+          },
+          nextId() {
+            return String(this.data.nextId++);
+          },
+        };
 
-  function render(){
-    renderTabs();
-    if(activeTab==='roles') return renderRoles();
-    if(activeTab==='lt') return renderLT();
-    if(activeTab==='st') return renderST();
-    if(activeTab==='tasks') return renderTasks();
-    if(activeTab==='dash') return renderDash();
-  }
-
-  /*******************
-   * UTIL GENERICI UI *
-   *******************/
-    function makeTable(columns, rows){
-      // wrapper per evitare tagli su viewport stretti
-      const wrap = document.createElement('div');
-      wrap.className = 'table-wrap';
-      wrap.style.overflowX = 'auto';
-
-      const table = document.createElement('table');
-      const thead = document.createElement('thead');
-      const trh = document.createElement('tr');
-
-      let sortIndex = -1; // nessuna colonna inizialmente
-      let sortDir = 1;    // 1 = asc, -1 = desc
-
-      function defaultCmp(a,b){
-        if(a==null && b==null) return 0;
-        if(a==null) return -1;
-        if(b==null) return 1;
-        return (a>b) - (a<b);
-      }
-
-      function applySort(){
-        if(sortIndex < 0) return;
-        const col = columns[sortIndex];
-        const cmp = col.sort || ((ra,rb)=> defaultCmp(col.key?.(ra), col.key?.(rb)));
-        rows.sort((a,b)=> sortDir * cmp(a,b));
-      }
-
-      columns.forEach((col, idx)=>{
-        const th = document.createElement('th');
-        th.textContent = col.label;
-        // sortable se c'è col.key o col.sort
-        if(col.key || col.sort){
-          th.classList.add('sortable');
-          th.onclick = ()=>{
-            if(sortIndex === idx){ sortDir = -sortDir; } else { sortIndex = idx; sortDir = 1; }
-            // aggiorna freccine
-            [...trh.children].forEach((el,i)=>{
-              el.classList.remove('asc','desc');
-              if(i===sortIndex) el.classList.add(sortDir===1 ? 'asc' : 'desc');
-            });
-            applySort();
-            mountBody();
-          };
+        function defaultState() {
+          return { nextId: 1, roles: [] };
         }
-        trh.appendChild(th);
-      });
-      thead.appendChild(trh);
 
-      const tbody = document.createElement('tbody');
-      function mountBody(){
-        tbody.innerHTML = '';
-        rows.forEach(r=>{
-          const tr = document.createElement('tr');
-          columns.forEach(col=>{
-            const td = document.createElement('td');
-            td.appendChild(col.render(r));
-            tr.appendChild(td);
-          });
-          tbody.appendChild(tr);
-        });
-      }
-      applySort();
-      mountBody();
-
-      table.appendChild(thead);
-      table.appendChild(tbody);
-      wrap.appendChild(table);
-      return wrap;
-    }
-
-
-  function selectRole(value){
-    const sel = document.createElement('select');
-    state.roles.forEach(r=>{ const o = document.createElement('option'); o.value=r.id; o.textContent=r.title; sel.appendChild(o); });
-    if(value) sel.value = value;
-    return sel;
-  }
-  function selectLT(roleId, value){
-    const sel = document.createElement('select');
-    const role = state.roles.find(r=>r.id===roleId);
-    (role?role.lt_goals:[]).forEach(g=>{ const o=document.createElement('option'); o.value=g.id; o.textContent=g.title; sel.appendChild(o); });
-    if(value) sel.value=value;
-    return sel;
-  }
-  function inputText(v, placeholder, on){ const i=document.createElement('input'); i.type='text'; i.value=v||''; if(placeholder) i.placeholder=placeholder; if(on) i.oninput=()=>on(i.value); return i; }
-  function inputInt(v,on){ const i=document.createElement('input'); i.type='number'; i.min='1'; i.max='5'; i.step='1'; i.value=(v??''); i.oninput=()=>on(i.value===''?null:toInt(i.value)); return i; }
-  function inputDate(v,on){ const i=document.createElement('input'); i.type='date'; i.value=v||''; i.oninput=()=>on(i.value||null); return i; }
-  function textarea(v,on){ const t=document.createElement('textarea'); t.value=v||''; t.oninput=()=>on(t.value); return t; }
-  function btn(label,cls,cb){ const b=document.createElement('button'); b.textContent=label; if(cls) b.className=cls; b.onclick=cb; return b; }
-
-  function confirmDelete(msg){ return confirm(msg||'Sei sicuro? Questa azione è irreversibile.'); }
-
-  function findLTById(id){ for(const r of state.roles){ const g=r.lt_goals.find(x=>x.id===id); if(g) return {role:r, lt:g}; } return null; }
-  function findSTById(id){ for(const r of state.roles){ for(const lt of r.lt_goals){ const s=lt.st_goals.find(x=>x.id===id); if(s) return {role:r, lt, st:s}; } } return null; }
-  function findTaskById(id){ for(const r of state.roles){ for(const lt of r.lt_goals){ for(const st of lt.st_goals){ const t=st.tasks.find(x=>x.id===id); if(t) return {role:r, lt, st, task:t}; } } } return null; }
-
-  /***********
-   * RUOLI   *
-   ***********/
-  function renderRoles(){
-    viewEl.innerHTML='';
-    const rows = state.roles.slice();
-    const table = makeTable([
-      {
-        label:'Titolo',
-        render:r=> inputText(r.title,'Titolo',v=>{ r.title=v; persist(); }),
-        key:r=> (r.title||'').toLowerCase()
-      },
-      {
-        label:'Importanza (1-5)',
-        render:r=> inputInt(r.importance,v=>{ r.importance=toInt(v); persist(); }),
-        key:r=> r.importance||0
-      },
-      {
-        label:'Azioni',
-        render:r=>{
-          const div=document.createElement('div'); div.className='controls';
-          div.appendChild(btn('+ LT','',()=>{ r.lt_goals.push(mkLT('Nuovo obiettivo LT','',3,datePlus(90))); persist(); }));
-          div.appendChild(btn('Elimina','',()=>{ if(!confirmDelete('Eliminare ruolo e tutti i figli?')) return; state.roles = state.roles.filter(x=>x.id!==r.id); persist(); render(); }));
-          return div;
-        }
-      }
-    ], rows);
-
-
-    const bar = document.createElement('div'); bar.className='controls';
-    bar.appendChild(btn('+ Ruolo','primary',()=>{ state.roles.push(mkRole('Nuovo ruolo',3)); persist(); render(); }));
-
-    viewEl.appendChild(bar);
-    viewEl.appendChild(table);
-  }
-
-  /*****************************
-   * OBIETTIVI LUNGO TERMINE   *
-   *****************************/
-  function renderLT(){
-    viewEl.innerHTML='';
-    const rows = [];
-    state.roles.forEach(r=> r.lt_goals.forEach(lt=> rows.push({role:r,lt})) );
-
-    const table = makeTable([
-      {
-        label:'Ruolo',
-        render:row=>{
-          const sel = selectRole(row.role.id);
-          sel.oninput=()=>{
-            const from=row.role, to=state.roles.find(x=>x.id===sel.value);
-            if(from.id===to.id) return;
-            from.lt_goals = from.lt_goals.filter(x=>x.id!==row.lt.id);
-            to.lt_goals.push(row.lt);
-            row.role = to;
-            persist();
-            render();
-          };
-          return sel;
-        },
-        key:row=> (row.role.title||'').toLowerCase()
-      },
-      {
-        label:'Titolo',
-        render:row=> inputText(row.lt.title,'Titolo',v=>{ row.lt.title=v; persist(); }),
-        key:row=> (row.lt.title||'').toLowerCase()
-      },
-      {
-        label:'Descrizione',
-        render:row=> textarea(row.lt.description,v=>{ row.lt.description=v; persist(); })
-      },
-      {
-        label:'Importanza (1-5)',
-        render:row=> inputInt(row.lt.importance,v=>{ row.lt.importance=toInt(v); cascadeAfterParentChange(); persist(); }),
-        key:row=> row.lt.importance||0
-      },
-      {
-        label:'Scadenza',
-        render:row=> inputDate(row.lt.due,v=>{ row.lt.due=v||today(); cascadeAfterParentChange(); persist(); }),
-        key:row=> row.lt.due||''
-      },
-      {
-        label:'Azioni',
-        render:row=>{
-          const d=document.createElement('div'); d.className='controls';
-          d.appendChild(btn('+ BT','',()=>{ row.lt.st_goals.push(mkST('Nuovo obiettivo BT','')); persist(); }));
-          d.appendChild(btn('Elimina','',()=>{
-            if(!confirmDelete('Eliminare obiettivo LT e tutti i figli?')) return;
-            row.role.lt_goals = row.role.lt_goals.filter(x=>x.id!==row.lt.id);
-            persist();
-            render();
-          }));
-          return d;
-        }
-      }
-    ], rows);
-
-
-    const bar=document.createElement('div'); bar.className='controls';
-    bar.appendChild(btn('+ Obiettivo LT','primary',()=>{
-      if(!state.roles.length){ alert('Prima crea almeno un Ruolo.'); return; }
-      // per default sul primo ruolo
-      state.roles[0].lt_goals.push(mkLT('Nuovo obiettivo LT','',3,datePlus(120)));
-      persist();
-      render();
-    }));
-
-    viewEl.appendChild(bar);
-    viewEl.appendChild(table);
-  }
-
-  /*****************************
-   * OBIETTIVI BREVE TERMINE   *
-   *****************************/
-  function renderST(){
-    viewEl.innerHTML='';
-    const rows=[];
-    state.roles.forEach(r=> r.lt_goals.forEach(lt=> lt.st_goals.forEach(st=> rows.push({role:r,lt,st}))));
-
-    const table = makeTable([
-      {
-        label:'Ruolo',
-        render:row=>{
-          const sel=selectRole(row.role.id);
-          sel.oninput=()=>{
-            const to=state.roles.find(x=>x.id===sel.value);
-            if(to.id===row.role.id) return;
-            row.lt.st_goals = row.lt.st_goals.filter(x=>x.id!==row.st.id);
-            if(!to.lt_goals.length) to.lt_goals.push(mkLT('Auto creato','',row.lt.importance,row.lt.due));
-            to.lt_goals[0].st_goals.push(row.st);
-            row.role=to; row.lt=to.lt_goals[0];
-            clampChildToParent(row.st,row.lt); cascadeAfterParentChange(); persist(); render();
-          };
-          return sel;
-        },
-        key:row=> (row.role.title||'').toLowerCase()
-      },
-      {
-        label:'LT',
-        render:row=>{
-          const sel=selectLT(row.role.id,row.lt.id);
-          sel.oninput=()=>{
-            const to=row.role.lt_goals.find(x=>x.id===sel.value);
-            if(!to) return;
-            row.lt.st_goals = row.lt.st_goals.filter(x=>x.id!==row.st.id);
-            to.st_goals.push(row.st);
-            row.lt=to;
-            clampChildToParent(row.st,row.lt); cascadeAfterParentChange(); persist();
-          };
-          return sel;
-        },
-        key:row=> (row.lt.title||'').toLowerCase()
-      },
-      {
-        label:'Titolo',
-        render:row=> inputText(row.st.title,'Titolo',v=>{ row.st.title=v; persist(); }),
-        key:row=> (row.st.title||'').toLowerCase()
-      },
-      {
-        label:'Descrizione',
-        render:row=> textarea(row.st.description,v=>{ row.st.description=v; persist(); })
-      },
-      {
-        label:'Importanza (ereditata se vuota)',
-        render:row=> inputInt(row.st.importance,v=>{ row.st.importance=v; clampChildToParent(row.st,row.lt); cascadeAfterParentChange(); persist(); }),
-        key:row=> effImportance(row.st,row.lt.importance)
-      },
-      {
-        label:'Scadenza (ereditata se vuota)',
-        render:row=> inputDate(row.st.due,v=>{ row.st.due=v; clampChildToParent(row.st,row.lt); cascadeAfterParentChange(); persist(); }),
-        key:row=> effDue(row.st,row.lt.due)||''
-      },
-      {
-        label:'Azioni',
-        render:row=>{
-          const d=document.createElement('div'); d.className='controls';
-          d.appendChild(btn('+ Task','',()=>{ row.st.tasks.push(mkTask('Nuova attività','')); persist(); }));
-          d.appendChild(btn('Elimina','',()=>{ if(!confirmDelete('Eliminare obiettivo BT e attività figlie?')) return; row.lt.st_goals = row.lt.st_goals.filter(x=>x.id!==row.st.id); persist(); render(); }));
-          return d;
-        }
-      }
-    ], rows);
-
-
-    const bar=document.createElement('div'); bar.className='controls';
-    bar.appendChild(btn('+ Obiettivo BT','primary',()=>{
-      if(!state.roles.length){ alert('Crea prima un Ruolo e un LT.'); return; }
-      const r = state.roles[0]; if(!r.lt_goals.length){ r.lt_goals.push(mkLT('Nuovo LT','',3,datePlus(120))); }
-      r.lt_goals[0].st_goals.push(mkST('Nuovo obiettivo BT',''));
-      persist();
-      render();
-    }));
-    viewEl.appendChild(bar);
-    viewEl.appendChild(table);
-  }
-
-  /*************
-   * ATTIVITÀ  *
-   *************/
-  function renderTasks(){
-    viewEl.innerHTML='';
-    const rows=[];
-    state.roles.forEach(r=> r.lt_goals.forEach(lt=> lt.st_goals.forEach(st=> st.tasks.forEach(task=> rows.push({role:r,lt,st,task})))));
-
-    const table = makeTable([
-      {
-        label:'Ruolo',
-        render:row=>{
-          const sel=selectRole(row.role.id);
-          sel.oninput=()=>{
-            const to=state.roles.find(x=>x.id===sel.value);
-            if(to.id===row.role.id) return;
-            row.st.tasks = row.st.tasks.filter(x=>x.id!==row.task.id);
-            if(!to.lt_goals.length) to.lt_goals.push(mkLT('Auto creato','',row.lt.importance,row.lt.due));
-            const tgtLT = to.lt_goals[0];
-            if(!tgtLT.st_goals.length) tgtLT.st_goals.push(mkST('Auto creato','',row.st.importance,row.st.due));
-            tgtLT.st_goals[0].tasks.push(row.task);
-            row.role=to; row.lt=tgtLT; row.st=tgtLT.st_goals[0];
-            clampChildToParent(row.task,row.st.due?row.st:row.lt); persist(); render();
-          };
-          return sel;
-        },
-        key:row=> (row.role.title||'').toLowerCase()
-      },
-      {
-        label:'LT',
-        render:row=>{
-          const sel=selectLT(row.role.id,row.lt.id);
-          sel.oninput=()=>{
-            const to=row.role.lt_goals.find(x=>x.id===sel.value);
-            if(!to) return;
-            row.st.tasks = row.st.tasks.filter(x=>x.id!==row.task.id);
-            if(!to.st_goals.length) to.st_goals.push(mkST('Auto creato','',row.st.importance,row.st.due));
-            to.st_goals[0].tasks.push(row.task);
-            row.lt=to; row.st=to.st_goals[0];
-            clampChildToParent(row.task,row.st.due?row.st:row.lt); persist();
-          };
-          return sel;
-        },
-        key:row=> (row.lt.title||'').toLowerCase()
-      },
-      {
-        label:'BT',
-        render:row=>{
-          const sel=document.createElement('select');
-          row.lt.st_goals.forEach(s=>{ const o=document.createElement('option'); o.value=s.id; o.textContent=s.title; sel.appendChild(o); });
-          sel.value=row.st.id;
-          sel.oninput=()=>{
-            const to=row.lt.st_goals.find(x=>x.id===sel.value);
-            row.st.tasks = row.st.tasks.filter(x=>x.id!==row.task.id);
-            to.tasks.push(row.task);
-            row.st=to;
-            clampChildToParent(row.task,row.st.due?row.st:row.lt); persist();
-          };
-          return sel;
-        },
-        key:row=> (row.st.title||'').toLowerCase()
-      },
-      {
-        label:'Titolo',
-        render:row=> inputText(row.task.title,'Titolo',v=>{ row.task.title=v; persist(); }),
-        key:row=> (row.task.title||'').toLowerCase()
-      },
-      {
-        label:'Descrizione',
-        render:row=> textarea(row.task.description,v=>{ row.task.description=v; persist(); })
-      },
-      {
-        label:'Importanza (ereditata se vuota)',
-        render:row=> inputInt(row.task.importance,v=>{ row.task.importance=v; clampChildToParent(row.task,row.st.due?row.st:row.lt); persist(); }),
-        key:row=> effImportance(row.task, effImportance(row.st,row.lt.importance))
-      },
-      {
-        label:'Scadenza (ereditata se vuota)',
-        render:row=> inputDate(row.task.due,v=>{ row.task.due=v; clampChildToParent(row.task,row.st.due?row.st:row.lt); persist(); }),
-        key:row=> effDue(row.task, effDue(row.st,row.lt.due))||''
-      },
-      {
-        label:'Azioni',
-        render:row=>{
-          const d=document.createElement('div'); d.className='controls';
-          d.appendChild(btn('Elimina','',()=>{ if(!confirmDelete('Eliminare attività?')) return; row.st.tasks = row.st.tasks.filter(x=>x.id!==row.task.id); persist(); render(); }));
-          return d;
-        }
-      }
-    ], rows);
-
-
-    const bar=document.createElement('div'); bar.className='controls';
-    bar.appendChild(btn('+ Attività','primary',()=>{
-      if(!state.roles.length){ alert('Crea prima Ruolo > LT > BT'); return; }
-      const r=state.roles[0]; if(!r.lt_goals.length) r.lt_goals.push(mkLT('Nuovo LT','',3,datePlus(120)));
-      const lt=r.lt_goals[0]; if(!lt.st_goals.length) lt.st_goals.push(mkST('Nuovo BT',''));
-      lt.st_goals[0].tasks.push(mkTask('Nuova attività',''));
-      persist();
-      render();
-    }));
-    viewEl.appendChild(bar);
-    viewEl.appendChild(table);
-  }
-
-  /****************
-   * DASHBOARD    *
-   ****************/
-  function renderDash(){
-    viewEl.innerHTML='';
-    const wrap=document.createElement('div'); wrap.className='cards';
-
-    // LT cards (imminenti)
-    const lts=[]; state.roles.forEach(r=> r.lt_goals.forEach(lt=> lts.push({role:r,lt})));
-    lts.sort((a,b)=> (a.lt.due||'').localeCompare(b.lt.due||''));
-
-    lts.slice(0,8).forEach(row=>{
-      wrap.appendChild(cardLT(row));
-    });
-
-    // Tasks urgenti (entro 14gg)
-    const soonTasks=[]; state.roles.forEach(r=> r.lt_goals.forEach(lt=> lt.st_goals.forEach(st=> st.tasks.forEach(task=>{
-      const due = effDue(task, effDue(st, lt.due));
-      if(due){ const diff = (new Date(due) - new Date())/86400000; if(diff<=14) soonTasks.push({role:r,lt,st,task,due}); }
-    }))));
-    soonTasks.sort((a,b)=> (a.due||'').localeCompare(b.due||''));
-
-    soonTasks.slice(0,8).forEach(row=> wrap.appendChild(cardTask(row)));
-
-    viewEl.appendChild(wrap);
-  }
-
-  function cardLT({role,lt}){
-    const c=document.createElement('article'); c.className='card';
-    const h=document.createElement('div'); h.className='title'; h.textContent=lt.title;
-    const meta=document.createElement('div'); meta.innerHTML = `<span class="badge">Ruolo: ${escapeHtml(role.title)}</span> <span class="badge">Imp: ${lt.importance}</span> <span class="badge">Scadenza: ${escapeHtml(lt.due||'-')}</span>`;
-    const p=document.createElement('div'); p.textContent=lt.description||'—';
-    const go=btn('Vai a LT','',()=>{ activeTab='lt'; render(); });
-    c.append(h,meta,p,go); return c;
-  }
-  function cardTask({role,lt,st,task,due}){
-    const c=document.createElement('article'); c.className='card';
-    const h=document.createElement('div'); h.className='title'; h.textContent=task.title;
-    const meta=document.createElement('div'); meta.innerHTML = `<span class="badge">${escapeHtml(role.title)} › ${escapeHtml(lt.title)} › ${escapeHtml(st.title)}</span> <span class="badge">Imp: ${effImportance(task,effImportance(st,lt.importance))}</span> <span class="badge">Scadenza: ${escapeHtml(due||'-')}</span>`;
-    const p=document.createElement('div'); p.textContent=task.description||'—';
-    const go=btn('Vai a Attività','',()=>{ activeTab='tasks'; render(); });
-    c.append(h,meta,p,go); return c;
-  }
-
-  /****************
-   * UTIL VARI    *
-   ****************/
-  function escapeHtml(s){
-    return (s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]));
-  }
-
-  /****************************
-   * EXPORT / IMPORT / FILE   *
-   ****************************/
-  document.getElementById('export').onclick = ()=>{
-    const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
-    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'kanban-covey.json' });
-    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
-  };
-  const filePicker = document.getElementById('filePicker');
-  document.getElementById('importBtn').onclick = ()=> filePicker.click();
-  filePicker.onchange = async (e)=>{
-    const file = e.target.files[0]; if(!file) return;
-    try { const text = await file.text(); const data = JSON.parse(text); if(validate(data)){ state = data; persist(); render(); } else alert('JSON non valido'); }
-    catch(err){ alert('Errore import: '+err.message); }
-    finally{ filePicker.value=''; }
-  };
-  function validate(data){ return data && Array.isArray(data.roles) && 'nextId' in data; }
-
-  // File System Access API (Chrome/Edge)
-  const supportsFSA = 'showSaveFilePicker' in window && 'showOpenFilePicker' in window;
-  async function saveToFile(){
-    try{
-      if(!supportsFSA) return alert('Il tuo browser non supporta il salvataggio diretto. Usa Esporta JSON.');
-      if(!currentFileHandle){
-        currentFileHandle = await window.showSaveFilePicker({ suggestedName:'kanban-covey.json', types:[{description:'JSON', accept:{'application/json':['.json']}}] });
-      }
-      const writable = await currentFileHandle.createWritable();
-      await writable.write(JSON.stringify(state,null,2));
-      await writable.close();
-      alert('Salvato ✅');
-    }catch(err){ if(err.name!=='AbortError') alert('Errore salvataggio: '+err.message); }
-  }
-  async function openFromFile(){
-    try{
-      if(!supportsFSA) return alert('Il tuo browser non supporta l\'apertura diretta. Usa Importa JSON.');
-      const [handle] = await window.showOpenFilePicker({ types:[{description:'JSON', accept:{'application/json':['.json']}}]});
-      currentFileHandle = handle;
-      const file = await handle.getFile();
-      const text = await file.text();
-      const data = JSON.parse(text);
-      if(validate(data)){ state = data; persist(); render(); }
-      else alert('JSON non valido');
-    }catch(err){ if(err.name!=='AbortError') alert('Errore apertura: '+err.message); }
-  }
-  document.getElementById('saveFile').onclick = saveToFile;
-  document.getElementById('openFile').onclick = openFromFile;
-
-  document.getElementById('clear').onclick = ()=>{
-    if(confirm('Sicuro di azzerare tutto?')){ state = defaultState(); persist(); render(); }
-  };
-
-  /********************
-   * GOOGLE DRIVE     *
-   * (codice preserv.)*
-   ********************/
-  const GD = {
-    CLIENT_ID: localStorage.getItem(LS_GD_CLIENT_ID) || '',
-    API_KEY: localStorage.getItem(LS_GD_API_KEY) || '',
-    DISCOVERY_DOCS: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
-    SCOPES: 'https://www.googleapis.com/auth/drive.file',
-    tokenClient: null,
-    gapiLoaded: false,
-    gisLoaded: false,
-    signedIn: false,
-    currentFileId: null,
-  };
-  const driveStatus = document.getElementById('driveStatus');
-  const gBtn = document.getElementById('gSignIn');
-  const driveOpenBtn = document.getElementById('driveOpen');
-  const driveSaveBtn = document.getElementById('driveSave');
-
-  function updateDriveUI(){
-    driveStatus.textContent = GD.signedIn ? 'Drive: connesso' : 'Drive: offline';
-    driveOpenBtn.disabled = !(GD.signedIn);
-    driveSaveBtn.disabled = !(GD.signedIn);
-  }
-  function saveCredsToLS(){ localStorage.setItem(LS_GD_CLIENT_ID, GD.CLIENT_ID); localStorage.setItem(LS_GD_API_KEY, GD.API_KEY); }
-  function askForCreds(){
-    const cid = prompt('Inserisci il tuo Google OAuth CLIENT_ID (tipo ...apps.googleusercontent.com):', GD.CLIENT_ID || '');
-    if(!cid) return false;
-    const api = prompt('Inserisci la tua Google API KEY:', GD.API_KEY || '');
-    if(!api) return false;
-    GD.CLIENT_ID = cid.trim(); GD.API_KEY = api.trim(); saveCredsToLS();
-    return true;
-  }
-
-  async function canFetchDiscovery() {
-    const u = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest?key=' + encodeURIComponent(GD.API_KEY);
-    try { const res = await fetch(u, { cache: 'no-store' }); if (!res.ok) return null; const ct = res.headers.get('content-type') || ''; if (!ct.includes('application/json')) return null; return GD.DISCOVERY_DOCS[0]; } catch { return null; }
-  }
-  async function initGapiWithRetry(maxRetries = 4) {
-    let attempt = 0; while (true) { try { await gapi.client.init({ apiKey: GD.API_KEY, discoveryDocs: GD.DISCOVERY_DOCS }); GD.gapiLoaded = true; updateDriveUI(); return; } catch (e) { attempt++; if (attempt >= maxRetries) throw e; await new Promise(r => setTimeout(r, 800 * Math.pow(2, attempt - 1))); } }
-  }
-  function loadGapi(){
-    return new Promise((resolve,reject)=>{
-      if(GD.gapiLoaded) return resolve();
-      const s = document.createElement('script'); s.src = 'https://apis.google.com/js/api.js';
-      s.onload = async ()=>{ gapi.load('client', async ()=>{ try{ const ok = await canFetchDiscovery(); if(!ok) throw new Error('Discovery non raggiungibile.'); await initGapiWithRetry(); resolve(); }catch(e){ console.error('gapi init error', e); reject(e); } }); };
-      s.onerror = reject; document.head.appendChild(s);
-    });
-  }
-  function loadGIS(){
-    return new Promise((resolve,reject)=>{
-      if(GD.gisLoaded) return resolve();
-      const s = document.createElement('script'); s.src = 'https://accounts.google.com/gsi/client';
-      s.onload = ()=>{ try{ GD.tokenClient = google.accounts.oauth2.initTokenClient({ client_id: GD.CLIENT_ID, scope: GD.SCOPES, callback: (resp)=>{ if(resp && resp.access_token){ GD.signedIn = true; updateDriveUI(); } } }); GD.gisLoaded = true; resolve(); }catch(e){ reject(e); } };
-      s.onerror = reject; document.head.appendChild(s);
-    });
-  }
-  async function ensureDriveReady(){
-    if(location.protocol === 'file:'){ alert('Per usare Google Drive apri la pagina da http://localhost o https://'); return false; }
-    if(!GD.CLIENT_ID || !GD.API_KEY){ const ok = askForCreds(); if(!ok) return false; }
-    try { await loadGIS(); } catch(e){ alert('Errore GIS: ' + (e.message||e)); return false; }
-    try { await loadGapi(); } catch(e){ console.warn('Uso fallback REST (senza discovery):', e); }
-    return true;
-  }
-  async function driveFetch(path, params = {}, method = 'GET', body = null) {
-    const tokenObj = google.accounts.oauth2.getToken?.();
-    const token = tokenObj && tokenObj.access_token;
-    if (!token) throw new Error('Nessun access token disponibile. Premi "Connetti Google".');
-    const url = new URL('https://www.googleapis.com/drive/v3/' + path);
-    Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, v));
-    const res = await fetch(url.toString(), { method, headers: { 'Authorization': 'Bearer ' + token, ...(body ? {'Content-Type':'application/json'} : {}) }, body: body ? JSON.stringify(body) : null });
-    if (!res.ok) throw new Error('Drive REST error ' + res.status + ': ' + await res.text());
-    return res.json();
-  }
-  async function listJsonFilesFallback(){ const q = "mimeType='application/json' and trashed=false"; return driveFetch('files', { q, fields: 'files(id,name,modifiedTime)', pageSize: '25' }); }
-  async function getFileContentFallback(fileId){ const tokenObj = google.accounts.oauth2.getToken?.(); const token = tokenObj && tokenObj.access_token; const url = 'https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(fileId) + '?alt=media'; const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } }); if (!res.ok) throw new Error('Download error ' + res.status); return await res.text(); }
-  async function uploadOrUpdateJsonFallback(name, content, fileId){
-    const boundary = '-------314159265358979323846';
-    const delimiter = '\r\n--' + boundary + '\r\n';
-    const closeDelim = '\r\n--' + boundary + '--';
-    const metadata = { name, mimeType: 'application/json' };
-    const body = delimiter + 'Content-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(metadata) + delimiter + 'Content-Type: application/json\r\n\r\n' + content + closeDelim;
-    const tokenObj = google.accounts.oauth2.getToken?.();
-    const token = tokenObj && tokenObj.access_token;
-    const method = fileId ? 'PATCH' : 'POST';
-    const path = fileId ? ('files/' + encodeURIComponent(fileId)) : 'files';
-    const res = await fetch('https://www.googleapis.com/upload/drive/v3/' + path + '?uploadType=multipart', { method, headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'multipart/related; boundary=' + boundary }, body });
-    if (!res.ok) throw new Error('Upload error ' + res.status + ': ' + await res.text());
-    const json = await res.json(); return json.id;
-  }
-
-  gBtn.onclick = async ()=>{ if(!(await ensureDriveReady())) return; try{ GD.tokenClient.requestAccessToken({ prompt: 'consent' }); } catch(e){ alert('Autorizzazione Google fallita: ' + (e.message||e)); } };
-
-  document.getElementById('driveOpen').onclick = async ()=>{
-    try{
-      if(!(await ensureDriveReady())) return;
-      let files = [];
-      if (GD.gapiLoaded && window.gapi?.client?.drive) {
-        try { const res = await gapi.client.drive.files.list({ q: "mimeType='application/json' and trashed=false", pageSize: 25, fields: 'files(id,name,modifiedTime)' }); files = res.result.files || []; } catch (e) { console.warn('gapi list fallita, passo a REST fallback:', e); }
-      }
-      if (!files.length) { const res = await listJsonFilesFallback(); files = res.files || []; }
-      if(files.length===0){ alert('Nessun JSON trovato nel tuo Drive.'); return; }
-      const nameList = files.map((f,i)=> `${i+1}) ${f.name} — ${new Date(f.modifiedTime).toLocaleString()}`).join('\n');
-      const idx = prompt('Scegli file da aprire (numero):\n'+nameList);
-      const i = Number(idx)-1; if(!(i>=0 && i<files.length)) return; const file = files[i];
-      let text; if (GD.gapiLoaded && window.gapi?.client?.drive) { try { const dl = await gapi.client.drive.files.get({ fileId: file.id, alt: 'media' }); text = dl.body; } catch (e) { console.warn('gapi download fallito, uso REST:', e); text = await getFileContentFallback(file.id); } } else { text = await getFileContentFallback(file.id); }
-      const data = JSON.parse(text); if(validate(data)){ state = data; persist(); render(); GD.currentFileId = file.id; alert('Aperto da Drive: '+file.name); } else alert('JSON non valido');
-    }catch(e){ alert('Errore apertura Drive: '+(e.message||e)); }
-  };
-
-  document.getElementById('driveSave').onclick = async ()=>{
-    try{
-      if(!(await ensureDriveReady())) return;
-      const fileName = 'kanban-covey.json';
-      const content = JSON.stringify(state, null, 2);
-      if (GD.gapiLoaded && window.gapi?.client?.drive) {
-        try {
-          if(GD.currentFileId){
-            const boundary = '-------314159265358979323846';
-            const delimiter = '\r\n--' + boundary + '\r\n';
-            const closeDelim = '\r\n--' + boundary + '--';
-            const metadata = { name: fileName, mimeType: 'application/json' };
-            const multipartBody = delimiter + 'Content-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(metadata) + delimiter + 'Content-Type: application/json\r\n\r\n' + content + closeDelim;
-            await gapi.client.request({ path: '/upload/drive/v3/files/' + encodeURIComponent(GD.currentFileId), method: 'PATCH', params: { uploadType: 'multipart' }, headers: { 'Content-Type': 'multipart/related; boundary=' + boundary }, body: multipartBody });
-            alert('Aggiornato su Drive ✅');
-          } else {
-            const boundary = '-------314159265358979323846';
-            const delimiter = '\r\n--' + boundary + '\r\n';
-            const closeDelim = '\r\n--' + boundary + '--';
-            const metadata = { name: fileName, mimeType: 'application/json' };
-            const multipartBody = delimiter + 'Content-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(metadata) + delimiter + 'Content-Type: application/json\r\n\r\n' + content + closeDelim;
-            const resp = await gapi.client.request({ path: '/upload/drive/v3/files', method: 'POST', params: { uploadType: 'multipart' }, headers: { 'Content-Type': 'multipart/related; boundary=' + boundary }, body: multipartBody });
-            GD.currentFileId = resp.result && resp.result.id; alert('Salvato su Drive ✅');
+        function loadState() {
+          try {
+            const raw = localStorage.getItem(STORAGE_KEYS.STATE);
+            if (!raw) return seedState();
+            const parsed = JSON.parse(raw);
+            return validate(parsed) ? parsed : seedState();
+          } catch (err) {
+            console.warn("Impossibile leggere lo stato salvato, uso seed.", err);
+            return seedState();
           }
-          return;
-        } catch (e) { console.warn('gapi upload fallito, uso REST:', e); }
-      }
-      GD.currentFileId = await uploadOrUpdateJsonFallback(fileName, content, GD.currentFileId);
-      alert('Salvato su Drive (REST) ✅');
-    }catch(e){ alert('Errore salvataggio Drive: ' + (e.message||e)); }
-  };
+        }
 
-  updateDriveUI();
+        function seedState() {
+          const seeded = defaultState();
+          const today = () => new Date().toISOString().slice(0, 10);
+          const datePlus = (days) => {
+            const date = new Date();
+            date.setDate(date.getDate() + days);
+            return date.toISOString().slice(0, 10);
+          };
+          const nextId = () => String(seeded.nextId++);
 
-  // Avvio
-  render();
-  </script>
-</body>
+          const role = {
+            id: nextId(),
+            title: "Team Leader",
+            importance: 3,
+            lt_goals: [],
+          };
+          const longTerm = {
+            id: nextId(),
+            title: "Introdurre ML nel prodotto",
+            description: "Roadmap ML (RAG, valutazione, privacy)",
+            importance: 5,
+            due: datePlus(120),
+            st_goals: [],
+          };
+          const shortTerm = {
+            id: nextId(),
+            title: "PoC RAG su documentale",
+            description: "Pipeline base eval + feedback",
+            importance: null,
+            due: null,
+            tasks: [],
+          };
+          const task = {
+            id: nextId(),
+            title: "Progettazione schema vector DB",
+            description: "Definire spazio embedding e chunking",
+            importance: 4,
+            due: datePlus(30),
+          };
+
+          shortTerm.tasks.push(task);
+          longTerm.st_goals.push(shortTerm);
+          role.lt_goals.push(longTerm);
+          seeded.roles.push(role);
+          return seeded;
+        }
+
+        function validate(candidate) {
+          return (
+            candidate &&
+            typeof candidate === "object" &&
+            Array.isArray(candidate.roles) &&
+            "nextId" in candidate
+          );
+        }
+
+        // =============================================================
+        // Utilità di formattazione e coercizione
+        // =============================================================
+        const DateUtils = {
+          today: () => new Date().toISOString().slice(0, 10),
+          addDays(days) {
+            const date = new Date();
+            date.setDate(date.getDate() + days);
+            return date.toISOString().slice(0, 10);
+          },
+        };
+
+        function toImportance(value, fallback = 1) {
+          const parsed = parseInt(value, 10);
+          if (Number.isNaN(parsed)) return fallback;
+          return Math.max(1, Math.min(5, parsed));
+        }
+
+        function toImportanceOrNull(value) {
+          if (value == null || value === "") return null;
+          return toImportance(value, 1);
+        }
+
+        function escapeHtml(value) {
+          return (value || "").replace(/[&<>"']/g, (match) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[match]
+          );
+        }
+
+        // =============================================================
+        // Ereditarietà di importanza/scadenza
+        // =============================================================
+        function effectiveImportance(node, parentImportance) {
+          return node.importance != null
+            ? toImportance(node.importance, 1)
+            : parentImportance;
+        }
+
+        function effectiveDueDate(node, parentDueDate) {
+          return node.due || parentDueDate || null;
+        }
+
+        function clampChildToParent(child, parent) {
+          const parentImportance = effectiveImportance(parent, 9999999);
+          const parentDue = parent.due || null;
+
+          if (
+            child.importance != null &&
+            child.importance > parentImportance
+          ) {
+            child.importance = parentImportance;
+          }
+
+          if (parentDue && child.due && child.due > parentDue) {
+            child.due = parentDue;
+          }
+        }
+
+        function cascadeAfterParentChange() {
+          AppState.data.roles.forEach((role) => {
+            role.lt_goals.forEach((ltGoal) => {
+              ltGoal.st_goals.forEach((stGoal) => {
+                clampChildToParent(stGoal, ltGoal);
+                stGoal.tasks.forEach((task) =>
+                  clampChildToParent(task, stGoal.due ? stGoal : ltGoal)
+                );
+              });
+            });
+          });
+        }
+
+        // =============================================================
+        // UI references e gestione tab
+        // =============================================================
+        const dom = {
+          tabs: document.getElementById("tabs"),
+          view: document.getElementById("view"),
+          filePicker: document.getElementById("filePicker"),
+          exportBtn: document.getElementById("export"),
+          importBtn: document.getElementById("importBtn"),
+          saveFileBtn: document.getElementById("saveFile"),
+          openFileBtn: document.getElementById("openFile"),
+          clearBtn: document.getElementById("clear"),
+          driveStatus: document.getElementById("driveStatus"),
+          googleBtn: document.getElementById("gSignIn"),
+          driveOpenBtn: document.getElementById("driveOpen"),
+          driveSaveBtn: document.getElementById("driveSave"),
+        };
+
+        let activeTab = "roles";
+
+        function render() {
+          renderTabs();
+          const renderer = tabRenderers[activeTab];
+          if (renderer) renderer();
+        }
+
+        function renderTabs() {
+          dom.tabs.innerHTML = "";
+          tabs.forEach((tab) => {
+            const element = document.createElement("button");
+            element.className = `tab${activeTab === tab.id ? " active" : ""}`;
+            element.textContent = tab.label;
+            element.addEventListener("click", () => {
+              activeTab = tab.id;
+              render();
+            });
+            dom.tabs.appendChild(element);
+          });
+        }
+
+        const tabRenderers = {
+          roles: renderRoles,
+          lt: renderLongTermGoals,
+          st: renderShortTermGoals,
+          tasks: renderTasks,
+          dash: renderDashboard,
+        };
+
+        // =============================================================
+        // Helper UI element factories
+        // =============================================================
+        function inputText(value, placeholder, onInput) {
+          const input = document.createElement("input");
+          input.type = "text";
+          input.value = value || "";
+          if (placeholder) input.placeholder = placeholder;
+          if (onInput) {
+            input.addEventListener("input", () => onInput(input.value));
+          }
+          return input;
+        }
+
+        function inputInteger(value, onInput) {
+          const input = document.createElement("input");
+          input.type = "number";
+          input.min = "1";
+          input.max = "99999";
+          input.step = "1";
+          input.value = value ?? "";
+          input.addEventListener("input", () => {
+            onInput(input.value === "" ? null : toImportance(input.value));
+          });
+          return input;
+        }
+
+        function inputDate(value, onInput) {
+          const input = document.createElement("input");
+          input.type = "date";
+          input.value = value || "";
+          input.addEventListener("input", () => onInput(input.value || null));
+          return input;
+        }
+
+        function textArea(value, onInput) {
+          const area = document.createElement("textarea");
+          area.value = value || "";
+          area.addEventListener("input", () => onInput(area.value));
+          return area;
+        }
+
+        function button(label, className, onClick) {
+          const btn = document.createElement("button");
+          btn.textContent = label;
+          if (className) btn.className = className;
+          btn.addEventListener("click", onClick);
+          return btn;
+        }
+
+        function selectRole(selectedId) {
+          const select = document.createElement("select");
+          AppState.data.roles.forEach((role) => {
+            const option = document.createElement("option");
+            option.value = role.id;
+            option.textContent = role.title;
+            select.appendChild(option);
+          });
+          if (selectedId) select.value = selectedId;
+          return select;
+        }
+
+        function selectLongTerm(roleId, selectedId) {
+          const select = document.createElement("select");
+          const role = AppState.data.roles.find((r) => r.id === roleId);
+          (role?.lt_goals || []).forEach((goal) => {
+            const option = document.createElement("option");
+            option.value = goal.id;
+            option.textContent = goal.title;
+            select.appendChild(option);
+          });
+          if (selectedId) select.value = selectedId;
+          return select;
+        }
+
+        function confirmDelete(message) {
+          return window.confirm(message || "Sei sicuro? Questa azione è irreversibile.");
+        }
+
+        function makeTable(columns, rows) {
+          const wrapper = document.createElement("div");
+          wrapper.style.overflowX = "auto";
+
+          const table = document.createElement("table");
+          const thead = document.createElement("thead");
+          const headerRow = document.createElement("tr");
+
+          let sortIndex = -1;
+          let sortDir = 1;
+
+          function defaultComparator(a, b) {
+            if (a == null && b == null) return 0;
+            if (a == null) return -1;
+            if (b == null) return 1;
+            if (a > b) return 1;
+            if (a < b) return -1;
+            return 0;
+          }
+
+          function applySort() {
+            if (sortIndex < 0) return;
+            const column = columns[sortIndex];
+            const comparator = column.sort || ((rowA, rowB) => {
+              const key = column.key;
+              const a = typeof key === "function" ? key(rowA) : undefined;
+              const b = typeof key === "function" ? key(rowB) : undefined;
+              return defaultComparator(a, b);
+            });
+            rows.sort((a, b) => sortDir * comparator(a, b));
+          }
+
+          columns.forEach((column, idx) => {
+            const th = document.createElement("th");
+            th.textContent = column.label;
+            if (column.key || column.sort) {
+              th.classList.add("sortable");
+              th.addEventListener("click", () => {
+                if (sortIndex === idx) {
+                  sortDir = -sortDir;
+                } else {
+                  sortIndex = idx;
+                  sortDir = 1;
+                }
+
+                [...headerRow.children].forEach((el, headerIdx) => {
+                  el.classList.remove("asc", "desc");
+                  if (headerIdx === sortIndex) {
+                    el.classList.add(sortDir === 1 ? "asc" : "desc");
+                  }
+                });
+
+                applySort();
+                renderBody();
+              });
+            }
+            headerRow.appendChild(th);
+          });
+
+          thead.appendChild(headerRow);
+          table.appendChild(thead);
+
+          const tbody = document.createElement("tbody");
+
+          function renderBody() {
+            tbody.innerHTML = "";
+            rows.forEach((row) => {
+              const tr = document.createElement("tr");
+              columns.forEach((column) => {
+                const td = document.createElement("td");
+                td.appendChild(column.render(row));
+                tr.appendChild(td);
+              });
+              tbody.appendChild(tr);
+            });
+          }
+
+          applySort();
+          renderBody();
+
+          table.appendChild(tbody);
+          wrapper.appendChild(table);
+          return wrapper;
+        }
+
+        // =============================================================
+        // Tab: Ruoli
+        // =============================================================
+        function renderRoles() {
+          dom.view.innerHTML = "";
+          const rows = AppState.data.roles.slice();
+
+          const table = makeTable(
+            [
+              {
+                label: "Titolo",
+                key: (role) => (role.title || "").toLowerCase(),
+                render: (role) =>
+                  inputText(role.title, "Titolo", (value) => {
+                    role.title = value;
+                    AppState.persist();
+                  }),
+              },
+              {
+                label: "Importanza (1-5)",
+                key: (role) => role.importance || 0,
+                render: (role) =>
+                  inputInteger(role.importance, (value) => {
+                    role.importance = toImportance(value ?? 1);
+                    AppState.persist();
+                  }),
+              },
+              {
+                label: "Azioni",
+                render: (role) => {
+                  const container = document.createElement("div");
+                  container.className = "controls";
+                  container.append(
+                    button("+ LT", "", () => {
+                      role.lt_goals.push(
+                        createLongTerm(
+                          "Nuovo obiettivo LT",
+                          "",
+                          3,
+                          DateUtils.addDays(90)
+                        )
+                      );
+                      AppState.persist();
+                      render();
+                    }),
+                    button("Elimina", "", () => {
+                      if (!confirmDelete("Eliminare ruolo e tutti i figli?"))
+                        return;
+                      AppState.data.roles = AppState.data.roles.filter(
+                        (candidate) => candidate.id !== role.id
+                      );
+                      AppState.persist();
+                      render();
+                    })
+                  );
+                  return container;
+                },
+              },
+            ],
+            rows
+          );
+
+          const toolbar = document.createElement("div");
+          toolbar.className = "controls";
+          toolbar.appendChild(
+            button("+ Ruolo", "primary", () => {
+              AppState.data.roles.push(createRole("Nuovo ruolo", 3));
+              AppState.persist();
+              render();
+            })
+          );
+
+          dom.view.append(toolbar, table);
+        }
+
+        // =============================================================
+        // Tab: Obiettivi Lungo Termine (LT)
+        // =============================================================
+        function renderLongTermGoals() {
+          dom.view.innerHTML = "";
+          const rows = [];
+          AppState.data.roles.forEach((role) =>
+            role.lt_goals.forEach((lt) => rows.push({ role, lt }))
+          );
+
+          const table = makeTable(
+            [
+              {
+                label: "Ruolo",
+                key: (row) => (row.role.title || "").toLowerCase(),
+                render: (row) => {
+                  const select = selectRole(row.role.id);
+                  select.addEventListener("input", () => {
+                    const from = row.role;
+                    const to = AppState.data.roles.find(
+                      (candidate) => candidate.id === select.value
+                    );
+                    if (!to || from.id === to.id) return;
+                    from.lt_goals = from.lt_goals.filter(
+                      (goal) => goal.id !== row.lt.id
+                    );
+                    to.lt_goals.push(row.lt);
+                    row.role = to;
+                    AppState.persist();
+                    render();
+                  });
+                  return select;
+                },
+              },
+              {
+                label: "Titolo",
+                key: (row) => (row.lt.title || "").toLowerCase(),
+                render: (row) =>
+                  inputText(row.lt.title, "Titolo", (value) => {
+                    row.lt.title = value;
+                    AppState.persist();
+                  }),
+              },
+              {
+                label: "Descrizione",
+                render: (row) =>
+                  textArea(row.lt.description, (value) => {
+                    row.lt.description = value;
+                    AppState.persist();
+                  }),
+              },
+              {
+                label: "Importanza (1-5)",
+                key: (row) => row.lt.importance || 0,
+                render: (row) =>
+                  inputInteger(row.lt.importance, (value) => {
+                    row.lt.importance = toImportance(value ?? 1);
+                    cascadeAfterParentChange();
+                    AppState.persist();
+                  }),
+              },
+              {
+                label: "Scadenza",
+                key: (row) => row.lt.due || "",
+                render: (row) =>
+                  inputDate(row.lt.due, (value) => {
+                    row.lt.due = value || DateUtils.today();
+                    cascadeAfterParentChange();
+                    AppState.persist();
+                  }),
+              },
+              {
+                label: "Azioni",
+                render: (row) => {
+                  const container = document.createElement("div");
+                  container.className = "controls";
+                  container.append(
+                    button("+ BT", "", () => {
+                      row.lt.st_goals.push(
+                        createShortTerm("Nuovo obiettivo BT", "", null, null)
+                      );
+                      AppState.persist();
+                      render();
+                    }),
+                    button("Elimina", "", () => {
+                      if (
+                        !confirmDelete(
+                          "Eliminare obiettivo LT e tutti i figli?"
+                        )
+                      )
+                        return;
+                      row.role.lt_goals = row.role.lt_goals.filter(
+                        (candidate) => candidate.id !== row.lt.id
+                      );
+                      AppState.persist();
+                      render();
+                    })
+                  );
+                  return container;
+                },
+              },
+            ],
+            rows
+          );
+
+          const toolbar = document.createElement("div");
+          toolbar.className = "controls";
+          toolbar.appendChild(
+            button("+ Obiettivo LT", "primary", () => {
+              if (!AppState.data.roles.length) {
+                alert("Prima crea almeno un Ruolo.");
+                return;
+              }
+              AppState.data.roles[0].lt_goals.push(
+                createLongTerm(
+                  "Nuovo obiettivo LT",
+                  "",
+                  3,
+                  DateUtils.addDays(120)
+                )
+              );
+              AppState.persist();
+              render();
+            })
+          );
+
+          dom.view.append(toolbar, table);
+        }
+
+        // =============================================================
+        // Tab: Obiettivi Breve Termine (ST)
+        // =============================================================
+        function renderShortTermGoals() {
+          dom.view.innerHTML = "";
+          const rows = [];
+          AppState.data.roles.forEach((role) =>
+            role.lt_goals.forEach((lt) =>
+              lt.st_goals.forEach((st) => rows.push({ role, lt, st }))
+            )
+          );
+
+          const table = makeTable(
+            [
+              {
+                label: "Ruolo",
+                key: (row) => (row.role.title || "").toLowerCase(),
+                render: (row) => {
+                  const select = selectRole(row.role.id);
+                  select.addEventListener("input", () => {
+                    const newRole = AppState.data.roles.find(
+                      (candidate) => candidate.id === select.value
+                    );
+                    if (!newRole || newRole.id === row.role.id) return;
+                    row.lt.st_goals = row.lt.st_goals.filter(
+                      (candidate) => candidate.id !== row.st.id
+                    );
+                    if (!newRole.lt_goals.length) {
+                      newRole.lt_goals.push(
+                        createLongTerm(
+                          "Auto creato",
+                          "",
+                          row.lt.importance,
+                          row.lt.due
+                        )
+                      );
+                    }
+                    const targetLT = newRole.lt_goals[0];
+                    targetLT.st_goals.push(row.st);
+                    row.role = newRole;
+                    row.lt = targetLT;
+                    clampChildToParent(row.st, row.lt);
+                    AppState.persist();
+                    render();
+                  });
+                  return select;
+                },
+              },
+              {
+                label: "LT",
+                key: (row) => (row.lt.title || "").toLowerCase(),
+                render: (row) => {
+                  const select = selectLongTerm(row.role.id, row.lt.id);
+                  select.addEventListener("input", () => {
+                    const target = row.role.lt_goals.find(
+                      (candidate) => candidate.id === select.value
+                    );
+                    if (!target) return;
+                    row.lt.st_goals = row.lt.st_goals.filter(
+                      (candidate) => candidate.id !== row.st.id
+                    );
+                    target.st_goals.push(row.st);
+                    row.lt = target;
+                    clampChildToParent(row.st, row.lt);
+                    AppState.persist();
+                    render();
+                  });
+                  return select;
+                },
+              },
+              {
+                label: "Titolo",
+                key: (row) => (row.st.title || "").toLowerCase(),
+                render: (row) =>
+                  inputText(row.st.title, "Titolo", (value) => {
+                    row.st.title = value;
+                    AppState.persist();
+                  }),
+              },
+              {
+                label: "Descrizione",
+                render: (row) =>
+                  textArea(row.st.description, (value) => {
+                    row.st.description = value;
+                    AppState.persist();
+                  }),
+              },
+              {
+                label: "Importanza (ereditata se vuota)",
+                key: (row) =>
+                  effectiveImportance(row.st, row.lt.importance ?? 1) || 0,
+                render: (row) =>
+                  inputInteger(row.st.importance, (value) => {
+                    row.st.importance = value;
+                    clampChildToParent(row.st, row.lt);
+                    AppState.persist();
+                  }),
+              },
+              {
+                label: "Scadenza (ereditata se vuota)",
+                key: (row) => effectiveDueDate(row.st, row.lt.due) || "",
+                render: (row) =>
+                  inputDate(row.st.due, (value) => {
+                    row.st.due = value;
+                    clampChildToParent(row.st, row.lt);
+                    AppState.persist();
+                  }),
+              },
+              {
+                label: "Azioni",
+                render: (row) => {
+                  const container = document.createElement("div");
+                  container.className = "controls";
+                  container.append(
+                    button("+ Attività", "", () => {
+                      row.st.tasks.push(
+                        createTask("Nuova attività", "", null, null)
+                      );
+                      AppState.persist();
+                      render();
+                    }),
+                    button("Elimina", "", () => {
+                      if (!confirmDelete("Eliminare obiettivo BT?")) return;
+                      row.lt.st_goals = row.lt.st_goals.filter(
+                        (candidate) => candidate.id !== row.st.id
+                      );
+                      AppState.persist();
+                      render();
+                    })
+                  );
+                  return container;
+                },
+              },
+            ],
+            rows
+          );
+
+          const toolbar = document.createElement("div");
+          toolbar.className = "controls";
+          toolbar.appendChild(
+            button("+ Obiettivo BT", "primary", () => {
+              if (!AppState.data.roles.length) {
+                alert("Crea prima Ruolo > LT");
+                return;
+              }
+              const role = AppState.data.roles[0];
+              if (!role.lt_goals.length) {
+                role.lt_goals.push(
+                  createLongTerm(
+                    "Nuovo obiettivo LT",
+                    "",
+                    3,
+                    DateUtils.addDays(120)
+                  )
+                );
+              }
+              role.lt_goals[0].st_goals.push(
+                createShortTerm("Nuovo obiettivo BT", "", null, null)
+              );
+              AppState.persist();
+              render();
+            })
+          );
+
+          dom.view.append(toolbar, table);
+        }
+
+        // =============================================================
+        // Tab: Attività
+        // =============================================================
+        function renderTasks() {
+          dom.view.innerHTML = "";
+          const rows = [];
+          AppState.data.roles.forEach((role) =>
+            role.lt_goals.forEach((lt) =>
+              lt.st_goals.forEach((st) =>
+                st.tasks.forEach((task) => rows.push({ role, lt, st, task }))
+              )
+            )
+          );
+
+          const table = makeTable(
+            [
+              {
+                label: "Ruolo",
+                key: (row) => (row.role.title || "").toLowerCase(),
+                render: (row) => {
+                  const select = selectRole(row.role.id);
+                  select.addEventListener("input", () => {
+                    const newRole = AppState.data.roles.find(
+                      (candidate) => candidate.id === select.value
+                    );
+                    if (!newRole || newRole.id === row.role.id) return;
+                    row.st.tasks = row.st.tasks.filter(
+                      (candidate) => candidate.id !== row.task.id
+                    );
+                    if (!newRole.lt_goals.length) {
+                      newRole.lt_goals.push(
+                        createLongTerm(
+                          "Auto creato",
+                          "",
+                          row.lt.importance,
+                          row.lt.due
+                        )
+                      );
+                    }
+                    const targetLT = newRole.lt_goals[0];
+                    if (!targetLT.st_goals.length) {
+                      targetLT.st_goals.push(
+                        createShortTerm(
+                          "Auto creato",
+                          "",
+                          row.st.importance,
+                          row.st.due
+                        )
+                      );
+                    }
+                    const targetST = targetLT.st_goals[0];
+                    targetST.tasks.push(row.task);
+                    row.role = newRole;
+                    row.lt = targetLT;
+                    row.st = targetST;
+                    clampChildToParent(row.task, row.st.due ? row.st : row.lt);
+                    AppState.persist();
+                    render();
+                  });
+                  return select;
+                },
+              },
+              {
+                label: "LT",
+                key: (row) => (row.lt.title || "").toLowerCase(),
+                render: (row) => {
+                  const select = selectLongTerm(row.role.id, row.lt.id);
+                  select.addEventListener("input", () => {
+                    const target = row.role.lt_goals.find(
+                      (candidate) => candidate.id === select.value
+                    );
+                    if (!target) return;
+                    row.st.tasks = row.st.tasks.filter(
+                      (candidate) => candidate.id !== row.task.id
+                    );
+                    if (!target.st_goals.length) {
+                      target.st_goals.push(
+                        createShortTerm(
+                          "Auto creato",
+                          "",
+                          row.st.importance,
+                          row.st.due
+                        )
+                      );
+                    }
+                    const targetST = target.st_goals[0];
+                    targetST.tasks.push(row.task);
+                    row.lt = target;
+                    row.st = targetST;
+                    clampChildToParent(row.task, row.st.due ? row.st : row.lt);
+                    AppState.persist();
+                    render();
+                  });
+                  return select;
+                },
+              },
+              {
+                label: "BT",
+                key: (row) => (row.st.title || "").toLowerCase(),
+                render: (row) => {
+                  const select = document.createElement("select");
+                  row.lt.st_goals.forEach((st) => {
+                    const option = document.createElement("option");
+                    option.value = st.id;
+                    option.textContent = st.title;
+                    select.appendChild(option);
+                  });
+                  select.value = row.st.id;
+                  select.addEventListener("input", () => {
+                    const target = row.lt.st_goals.find(
+                      (candidate) => candidate.id === select.value
+                    );
+                    if (!target) return;
+                    row.st.tasks = row.st.tasks.filter(
+                      (candidate) => candidate.id !== row.task.id
+                    );
+                    target.tasks.push(row.task);
+                    row.st = target;
+                    clampChildToParent(row.task, row.st.due ? row.st : row.lt);
+                    AppState.persist();
+                    render();
+                  });
+                  return select;
+                },
+              },
+              {
+                label: "Titolo",
+                key: (row) => (row.task.title || "").toLowerCase(),
+                render: (row) =>
+                  inputText(row.task.title, "Titolo", (value) => {
+                    row.task.title = value;
+                    AppState.persist();
+                  }),
+              },
+              {
+                label: "Descrizione",
+                render: (row) =>
+                  textArea(row.task.description, (value) => {
+                    row.task.description = value;
+                    AppState.persist();
+                  }),
+              },
+              {
+                label: "Importanza (ereditata se vuota)",
+                key: (row) =>
+                  effectiveImportance(
+                    row.task,
+                    effectiveImportance(row.st, row.lt.importance)
+                  ) || 0,
+                render: (row) =>
+                  inputInteger(row.task.importance, (value) => {
+                    row.task.importance = value;
+                    clampChildToParent(row.task, row.st.due ? row.st : row.lt);
+                    AppState.persist();
+                  }),
+              },
+              {
+                label: "Scadenza (ereditata se vuota)",
+                key: (row) =>
+                  effectiveDueDate(
+                    row.task,
+                    effectiveDueDate(row.st, row.lt.due)
+                  ) || "",
+                render: (row) =>
+                  inputDate(row.task.due, (value) => {
+                    row.task.due = value;
+                    clampChildToParent(row.task, row.st.due ? row.st : row.lt);
+                    AppState.persist();
+                  }),
+              },
+              {
+                label: "Azioni",
+                render: (row) => {
+                  const container = document.createElement("div");
+                  container.className = "controls";
+                  container.appendChild(
+                    button("Elimina", "", () => {
+                      if (!confirmDelete("Eliminare attività?")) return;
+                      row.st.tasks = row.st.tasks.filter(
+                        (candidate) => candidate.id !== row.task.id
+                      );
+                      AppState.persist();
+                      render();
+                    })
+                  );
+                  return container;
+                },
+              },
+            ],
+            rows
+          );
+
+          const toolbar = document.createElement("div");
+          toolbar.className = "controls";
+          toolbar.appendChild(
+            button("+ Attività", "primary", () => {
+              if (!AppState.data.roles.length) {
+                alert("Crea prima Ruolo > LT > BT");
+                return;
+              }
+              const role = AppState.data.roles[0];
+              if (!role.lt_goals.length) {
+                role.lt_goals.push(
+                  createLongTerm(
+                    "Nuovo LT",
+                    "",
+                    3,
+                    DateUtils.addDays(120)
+                  )
+                );
+              }
+              const lt = role.lt_goals[0];
+              if (!lt.st_goals.length) {
+                lt.st_goals.push(createShortTerm("Nuovo BT", "", null, null));
+              }
+              lt.st_goals[0].tasks.push(
+                createTask("Nuova attività", "", null, null)
+              );
+              AppState.persist();
+              render();
+            })
+          );
+
+          dom.view.append(toolbar, table);
+        }
+
+        // =============================================================
+        // Tab: Dashboard
+        // =============================================================
+        function renderDashboard() {
+          dom.view.innerHTML = "";
+          const cardsContainer = document.createElement("div");
+          cardsContainer.className = "cards";
+
+          const longTermItems = [];
+          AppState.data.roles.forEach((role) =>
+            role.lt_goals.forEach((lt) => longTermItems.push({ role, lt }))
+          );
+          longTermItems.sort((a, b) => (a.lt.due || "").localeCompare(b.lt.due || ""));
+          longTermItems.slice(0, 8).forEach((item) => {
+            cardsContainer.appendChild(createLongTermCard(item));
+          });
+
+          const upcomingTasks = [];
+          AppState.data.roles.forEach((role) =>
+            role.lt_goals.forEach((lt) =>
+              lt.st_goals.forEach((st) =>
+                st.tasks.forEach((task) => {
+                  const due = effectiveDueDate(
+                    task,
+                    effectiveDueDate(st, lt.due)
+                  );
+                  if (due) {
+                    const diff = (new Date(due) - new Date()) / 86400000;
+                    if (diff <= 14) {
+                      upcomingTasks.push({ role, lt, st, task, due });
+                    }
+                  }
+                })
+              )
+            )
+          );
+
+          upcomingTasks.sort((a, b) => (a.due || "").localeCompare(b.due || ""));
+          upcomingTasks.slice(0, 8).forEach((item) => {
+            cardsContainer.appendChild(createTaskCard(item));
+          });
+
+          dom.view.appendChild(cardsContainer);
+        }
+
+        function createLongTermCard({ role, lt }) {
+          const card = document.createElement("article");
+          card.className = "card";
+          const title = document.createElement("div");
+          title.className = "title";
+          title.textContent = lt.title;
+          const meta = document.createElement("div");
+          meta.innerHTML = `
+            <span class="badge">Ruolo: ${escapeHtml(role.title)}</span>
+            <span class="badge">Imp: ${lt.importance}</span>
+            <span class="badge">Scadenza: ${escapeHtml(lt.due || "-")}</span>`;
+          const desc = document.createElement("div");
+          desc.textContent = lt.description || "—";
+          const goBtn = button("Vai a LT", "", () => {
+            activeTab = "lt";
+            render();
+          });
+          card.append(title, meta, desc, goBtn);
+          return card;
+        }
+
+        function createTaskCard({ role, lt, st, task, due }) {
+          const card = document.createElement("article");
+          card.className = "card";
+          const title = document.createElement("div");
+          title.className = "title";
+          title.textContent = task.title;
+          const meta = document.createElement("div");
+          meta.innerHTML = `
+            <span class="badge">${escapeHtml(role.title)} › ${escapeHtml(lt.title)} › ${escapeHtml(st.title)}</span>
+            <span class="badge">Imp: ${effectiveImportance(
+              task,
+              effectiveImportance(st, lt.importance)
+            )}</span>
+            <span class="badge">Scadenza: ${escapeHtml(due || "-")}</span>`;
+          const desc = document.createElement("div");
+          desc.textContent = task.description || "—";
+          const goBtn = button("Vai a Attività", "", () => {
+            activeTab = "tasks";
+            render();
+          });
+          card.append(title, meta, desc, goBtn);
+          return card;
+        }
+
+        // =============================================================
+        // Factory function per creare nuovi elementi del dominio
+        // =============================================================
+        function createRole(title, importance) {
+          return {
+            id: AppState.nextId(),
+            title,
+            importance: toImportance(importance, 1),
+            lt_goals: [],
+          };
+        }
+
+        function createLongTerm(title, description, importance, due) {
+          return {
+            id: AppState.nextId(),
+            title,
+            description: description || "",
+            importance: toImportance(importance, 1),
+            due: due || DateUtils.today(),
+            st_goals: [],
+          };
+        }
+
+        function createShortTerm(title, description, importance, due) {
+          return {
+            id: AppState.nextId(),
+            title,
+            description: description || "",
+            importance: toImportanceOrNull(importance),
+            due: due || null,
+            tasks: [],
+          };
+        }
+
+        function createTask(title, description, importance, due) {
+          return {
+            id: AppState.nextId(),
+            title,
+            description: description || "",
+            importance: toImportanceOrNull(importance),
+            due: due || null,
+          };
+        }
+
+        // =============================================================
+        // Export / Import JSON
+        // =============================================================
+        dom.exportBtn.addEventListener("click", () => {
+          const blob = new Blob([JSON.stringify(AppState.data, null, 2)], {
+            type: "application/json",
+          });
+          const link = document.createElement("a");
+          link.href = URL.createObjectURL(blob);
+          link.download = DEFAULT_FILE_NAME;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          URL.revokeObjectURL(link.href);
+        });
+
+        dom.importBtn.addEventListener("click", () => dom.filePicker.click());
+
+        dom.filePicker.addEventListener("change", async (event) => {
+          const file = event.target.files?.[0];
+          if (!file) return;
+          try {
+            const content = await file.text();
+            const parsed = JSON.parse(content);
+            if (!validate(parsed)) {
+              alert("JSON non valido");
+              return;
+            }
+            AppState.replace(parsed);
+            render();
+          } catch (error) {
+            alert(`Errore import: ${error.message}`);
+          } finally {
+            dom.filePicker.value = "";
+          }
+        });
+
+        // =============================================================
+        // File System Access API
+        // =============================================================
+        const FileSystem = {
+          supported:
+            "showSaveFilePicker" in window && "showOpenFilePicker" in window,
+        };
+
+        dom.saveFileBtn.addEventListener("click", async () => {
+          if (!FileSystem.supported) {
+            alert(
+              "Il tuo browser non supporta il salvataggio diretto. Usa Esporta JSON."
+            );
+            return;
+          }
+          try {
+            if (!AppState.currentFileHandle) {
+              AppState.currentFileHandle = await window.showSaveFilePicker({
+                suggestedName: DEFAULT_FILE_NAME,
+                types: [
+                  {
+                    description: "JSON",
+                    accept: { "application/json": [".json"] },
+                  },
+                ],
+              });
+            }
+            const writable = await AppState.currentFileHandle.createWritable();
+            await writable.write(JSON.stringify(AppState.data, null, 2));
+            await writable.close();
+            alert("Salvato ✅");
+          } catch (error) {
+            if (error.name !== "AbortError") {
+              alert(`Errore salvataggio: ${error.message}`);
+            }
+          }
+        });
+
+        dom.openFileBtn.addEventListener("click", async () => {
+          if (!FileSystem.supported) {
+            alert(
+              "Il tuo browser non supporta l'apertura diretta. Usa Importa JSON."
+            );
+            return;
+          }
+          try {
+            const [handle] = await window.showOpenFilePicker({
+              types: [
+                {
+                  description: "JSON",
+                  accept: { "application/json": [".json"] },
+                },
+              ],
+            });
+            AppState.currentFileHandle = handle;
+            const file = await handle.getFile();
+            const content = await file.text();
+            const parsed = JSON.parse(content);
+            if (!validate(parsed)) {
+              alert("JSON non valido");
+              return;
+            }
+            AppState.replace(parsed);
+            render();
+          } catch (error) {
+            if (error.name !== "AbortError") {
+              alert(`Errore apertura: ${error.message}`);
+            }
+          }
+        });
+
+        dom.clearBtn.addEventListener("click", () => {
+          if (!confirmDelete("Sicuro di azzerare tutto?")) return;
+          AppState.replace(defaultState());
+          render();
+        });
+
+        // =============================================================
+        // Google Drive integration (opzionale)
+        // =============================================================
+        const GoogleDrive = {
+          CLIENT_ID: localStorage.getItem(STORAGE_KEYS.GD_CLIENT_ID) || "",
+          API_KEY: localStorage.getItem(STORAGE_KEYS.GD_API_KEY) || "",
+          DISCOVERY_DOCS: GOOGLE_DISCOVERY_DOCS,
+          SCOPES: GOOGLE_SCOPE,
+          tokenClient: null,
+          gapiLoaded: false,
+          gisLoaded: false,
+          signedIn: false,
+          currentFileId: null,
+        };
+
+        function updateDriveUI() {
+          dom.driveStatus.textContent = GoogleDrive.signedIn
+            ? "Drive: connesso"
+            : "Drive: offline";
+          dom.driveOpenBtn.disabled = !GoogleDrive.signedIn;
+          dom.driveSaveBtn.disabled = !GoogleDrive.signedIn;
+        }
+
+        function saveDriveCredentials() {
+          localStorage.setItem(STORAGE_KEYS.GD_CLIENT_ID, GoogleDrive.CLIENT_ID);
+          localStorage.setItem(STORAGE_KEYS.GD_API_KEY, GoogleDrive.API_KEY);
+        }
+
+        function askForDriveCredentials() {
+          const clientId = prompt(
+            "Inserisci il tuo Google OAuth CLIENT_ID (tipo ...apps.googleusercontent.com):",
+            GoogleDrive.CLIENT_ID || ""
+          );
+          if (!clientId) return false;
+          const apiKey = prompt(
+            "Inserisci la tua Google API KEY:",
+            GoogleDrive.API_KEY || ""
+          );
+          if (!apiKey) return false;
+          GoogleDrive.CLIENT_ID = clientId.trim();
+          GoogleDrive.API_KEY = apiKey.trim();
+          saveDriveCredentials();
+          return true;
+        }
+
+        function loadGapi() {
+          return new Promise((resolve, reject) => {
+            if (GoogleDrive.gapiLoaded) {
+              resolve();
+              return;
+            }
+            const script = document.createElement("script");
+            script.src = "https://apis.google.com/js/api.js";
+            script.onload = () => {
+              gapi.load("client", async () => {
+                try {
+                  await gapi.client.init({
+                    apiKey: GoogleDrive.API_KEY,
+                    discoveryDocs: GoogleDrive.DISCOVERY_DOCS,
+                  });
+                  GoogleDrive.gapiLoaded = true;
+                  resolve();
+                } catch (error) {
+                  reject(error);
+                }
+              });
+            };
+            script.onerror = reject;
+            document.head.appendChild(script);
+          });
+        }
+
+        function loadGoogleIdentityServices() {
+          return new Promise((resolve, reject) => {
+            if (GoogleDrive.gisLoaded) {
+              resolve();
+              return;
+            }
+            const script = document.createElement("script");
+            script.src = "https://accounts.google.com/gsi/client";
+            script.onload = () => {
+              try {
+                GoogleDrive.tokenClient = google.accounts.oauth2.initTokenClient({
+                  client_id: GoogleDrive.CLIENT_ID,
+                  scope: GoogleDrive.SCOPES,
+                  callback: (response) => {
+                    if (response && response.access_token) {
+                      GoogleDrive.signedIn = true;
+                      updateDriveUI();
+                    }
+                  },
+                });
+                GoogleDrive.gisLoaded = true;
+                resolve();
+              } catch (error) {
+                reject(error);
+              }
+            };
+            script.onerror = reject;
+            document.head.appendChild(script);
+          });
+        }
+
+        async function ensureDriveReady() {
+         // if (location.protocol === "file:") {
+         //   alert(
+         //     "Per usare Google Drive apri la pagina da http://localhost o https://"
+         //   );
+         //   return false;
+         // }
+          if (!GoogleDrive.CLIENT_ID || !GoogleDrive.API_KEY) {
+            const ok = askForDriveCredentials();
+            if (!ok) return false;
+          }
+          try {
+            await loadGoogleIdentityServices();
+          } catch (error) {
+            alert(`Errore GIS: ${error.message || error}`);
+            return false;
+          }
+          try {
+            await loadGapi();
+          } catch (error) {
+            console.warn("Uso fallback REST (senza discovery):", error);
+          }
+          return true;
+        }
+
+        async function driveFetch(path, params = {}, method = "GET", body = null) {
+          const tokenObj = google.accounts.oauth2.getToken?.();
+          const token = tokenObj && tokenObj.access_token;
+          if (!token) throw new Error('Nessun access token disponibile. Premi "Connetti Google".');
+          const url = new URL(`https://www.googleapis.com/drive/v3/${path}`);
+          Object.entries(params).forEach(([key, value]) =>
+            url.searchParams.set(key, value)
+          );
+          const response = await fetch(url.toString(), {
+            method,
+            headers: {
+              Authorization: `Bearer ${token}`,
+              ...(body ? { "Content-Type": "application/json" } : {}),
+            },
+            body: body ? JSON.stringify(body) : null,
+          });
+          if (!response.ok) {
+            throw new Error(`Drive REST error ${response.status}: ${await response.text()}`);
+          }
+          return response.json();
+        }
+
+        async function listJsonFilesFallback() {
+          const q = "mimeType='application/json' and trashed=false";
+          return driveFetch("files", {
+            q,
+            fields: "files(id,name,modifiedTime)",
+            pageSize: "25",
+          });
+        }
+
+        async function getFileContentFallback(fileId) {
+          const tokenObj = google.accounts.oauth2.getToken?.();
+          const token = tokenObj && tokenObj.access_token;
+          const url = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(
+            fileId
+          )}?alt=media`;
+          const response = await fetch(url, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          if (!response.ok) {
+            throw new Error(`Download error ${response.status}`);
+          }
+          return response.text();
+        }
+
+        async function uploadOrUpdateJsonFallback(name, content, fileId) {
+          const boundary = "-------314159265358979323846";
+          const delimiter = `\r\n--${boundary}\r\n`;
+          const closeDelimiter = `\r\n--${boundary}--`;
+          const metadata = { name, mimeType: "application/json" };
+          const multipartBody =
+            `${delimiter}Content-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}` +
+            `${delimiter}Content-Type: application/json\r\n\r\n${content}${closeDelimiter}`;
+
+          const tokenObj = google.accounts.oauth2.getToken?.();
+          const token = tokenObj && tokenObj.access_token;
+          const method = fileId ? "PATCH" : "POST";
+          const path = fileId ? `files/${encodeURIComponent(fileId)}` : "files";
+          const response = await fetch(
+            `https://www.googleapis.com/upload/drive/v3/${path}?uploadType=multipart`,
+            {
+              method,
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": `multipart/related; boundary=${boundary}`,
+              },
+              body: multipartBody,
+            }
+          );
+          if (!response.ok) {
+            throw new Error(`Upload error ${response.status}: ${await response.text()}`);
+          }
+          const json = await response.json();
+          return json.id;
+        }
+
+        dom.googleBtn.addEventListener("click", async () => {
+          if (!(await ensureDriveReady())) return;
+          try {
+            GoogleDrive.tokenClient.requestAccessToken({ prompt: "consent" });
+          } catch (error) {
+            alert(`Autorizzazione Google fallita: ${error.message || error}`);
+          }
+        });
+
+        dom.driveOpenBtn.addEventListener("click", async () => {
+          try {
+            if (!(await ensureDriveReady())) return;
+            let files = [];
+            if (GoogleDrive.gapiLoaded && window.gapi?.client?.drive) {
+              try {
+                const response = await gapi.client.drive.files.list({
+                  q: "mimeType='application/json' and trashed=false",
+                  pageSize: 25,
+                  fields: "files(id,name,modifiedTime)",
+                });
+                files = response.result.files || [];
+              } catch (error) {
+                console.warn("gapi list fallita, passo a REST fallback:", error);
+              }
+            }
+            if (!files.length) {
+              const response = await listJsonFilesFallback();
+              files = response.files || [];
+            }
+            if (!files.length) {
+              alert("Nessun JSON trovato nel tuo Drive.");
+              return;
+            }
+            const nameList = files
+              .map(
+                (file, index) =>
+                  `${index + 1}) ${file.name} — ${new Date(
+                    file.modifiedTime
+                  ).toLocaleString()}`
+              )
+              .join("\n");
+            const idx = prompt(`Scegli file da aprire (numero):\n${nameList}`);
+            const selectedIndex = Number(idx) - 1;
+            if (!(selectedIndex >= 0 && selectedIndex < files.length)) return;
+            const file = files[selectedIndex];
+            let text;
+            if (GoogleDrive.gapiLoaded && window.gapi?.client?.drive) {
+              try {
+                const download = await gapi.client.drive.files.get({
+                  fileId: file.id,
+                  alt: "media",
+                });
+                text = download.body;
+              } catch (error) {
+                console.warn("gapi download fallito, uso REST:", error);
+                text = await getFileContentFallback(file.id);
+              }
+            } else {
+              text = await getFileContentFallback(file.id);
+            }
+            const data = JSON.parse(text);
+            if (!validate(data)) {
+              alert("JSON non valido");
+              return;
+            }
+            AppState.replace(data);
+            GoogleDrive.currentFileId = file.id;
+            alert(`Aperto da Drive: ${file.name}`);
+            render();
+          } catch (error) {
+            alert(`Errore apertura Drive: ${error.message || error}`);
+          }
+        });
+
+        dom.driveSaveBtn.addEventListener("click", async () => {
+          try {
+            if (!(await ensureDriveReady())) return;
+            const fileName = DEFAULT_FILE_NAME;
+            const content = JSON.stringify(AppState.data, null, 2);
+            if (GoogleDrive.gapiLoaded && window.gapi?.client?.drive) {
+              try {
+                const boundary = "-------314159265358979323846";
+                const delimiter = `\r\n--${boundary}\r\n`;
+                const closeDelimiter = `\r\n--${boundary}--`;
+                const metadata = { name: fileName, mimeType: "application/json" };
+                const multipartBody =
+                  `${delimiter}Content-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}` +
+                  `${delimiter}Content-Type: application/json\r\n\r\n${content}${closeDelimiter}`;
+
+                if (GoogleDrive.currentFileId) {
+                  await gapi.client.request({
+                    path: `/upload/drive/v3/files/${encodeURIComponent(
+                      GoogleDrive.currentFileId
+                    )}`,
+                    method: "PATCH",
+                    params: { uploadType: "multipart" },
+                    headers: {
+                      "Content-Type": `multipart/related; boundary=${boundary}`,
+                    },
+                    body: multipartBody,
+                  });
+                  alert("Aggiornato su Drive ✅");
+                } else {
+                  const response = await gapi.client.request({
+                    path: "/upload/drive/v3/files",
+                    method: "POST",
+                    params: { uploadType: "multipart" },
+                    headers: {
+                      "Content-Type": `multipart/related; boundary=${boundary}`,
+                    },
+                    body: multipartBody,
+                  });
+                  GoogleDrive.currentFileId = response.result?.id || null;
+                  alert("Salvato su Drive ✅");
+                }
+                return;
+              } catch (error) {
+                console.warn("gapi upload fallito, uso REST:", error);
+              }
+            }
+            GoogleDrive.currentFileId = await uploadOrUpdateJsonFallback(
+              fileName,
+              content,
+              GoogleDrive.currentFileId
+            );
+            alert("Salvato su Drive (REST) ✅");
+          } catch (error) {
+            alert(`Errore salvataggio Drive: ${error.message || error}`);
+          }
+        });
+
+        updateDriveUI();
+        render();
+      })();
+    </script>
+  </body>
 </html>
