@@ -149,7 +149,7 @@
       }
 
       thead th {
-        position: sticky;
+        /* position: sticky; */
         top: var(--sticky-top);
         z-index: 10;
         padding: 0.7rem 0.8rem;
@@ -472,7 +472,7 @@
         }
 
         function clampChildToParent(child, parent) {
-          const parentImportance = effectiveImportance(parent, 5);
+          const parentImportance = effectiveImportance(parent, 9999999);
           const parentDue = parent.due || null;
 
           if (
@@ -566,7 +566,7 @@
           const input = document.createElement("input");
           input.type = "number";
           input.min = "1";
-          input.max = "5";
+          input.max = "99999";
           input.step = "1";
           input.value = value ?? "";
           input.addEventListener("input", () => {
@@ -1661,12 +1661,12 @@
         }
 
         async function ensureDriveReady() {
-          if (location.protocol === "file:") {
-            alert(
-              "Per usare Google Drive apri la pagina da http://localhost o https://"
-            );
-            return false;
-          }
+         // if (location.protocol === "file:") {
+         //   alert(
+         //     "Per usare Google Drive apri la pagina da http://localhost o https://"
+         //   );
+         //   return false;
+         // }
           if (!GoogleDrive.CLIENT_ID || !GoogleDrive.API_KEY) {
             const ok = askForDriveCredentials();
             if (!ok) return false;
