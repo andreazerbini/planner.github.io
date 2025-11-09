@@ -220,20 +220,101 @@
         resize: vertical;
       }
 
-      .cards {
+      .kanban {
         display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(260px, 1fr);
         gap: 1rem;
-        grid-template-columns: repeat(4, minmax(240px, 1fr));
+        overflow-x: auto;
+        padding-bottom: 0.5rem;
       }
 
-      .card {
+      .kanban-column {
         display: flex;
         flex-direction: column;
-        gap: 0.45rem;
-        padding: 0.8rem;
+        gap: 0.75rem;
+        min-height: 200px;
+        padding: 0.9rem;
         border: 1px solid var(--border);
         border-radius: 0.9rem;
+        background: rgba(18, 24, 38, 0.7);
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .kanban-column.dragover {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 1px var(--accent);
+      }
+
+      .kanban-column-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        font-weight: 600;
+      }
+
+      .kanban-column-count {
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+
+      .kanban-column-body {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        min-height: 48px;
+      }
+
+      .kanban-column-placeholder {
+        margin: 0;
+        padding: 1rem;
+        font-size: 0.85rem;
+        color: var(--muted);
+        text-align: center;
+        border: 1px dashed var(--border);
+        border-radius: 0.8rem;
+      }
+
+      .kanban-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        padding: 0.8rem;
+        border: 1px solid var(--border);
+        border-radius: 0.85rem;
         background: var(--card);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        cursor: grab;
+      }
+
+      .kanban-card.dragging {
+        opacity: 0.6;
+      }
+
+      .kanban-card:active {
+        cursor: grabbing;
+      }
+
+      .kanban-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.35);
+      }
+
+      .kanban-card-hierarchy {
+        font-size: 0.75rem;
+        color: var(--muted);
+      }
+
+      .kanban-card-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+      }
+
+      .kanban-card .description {
+        font-size: 0.85rem;
+        color: var(--muted);
       }
 
       .badge {
@@ -249,6 +330,16 @@
         font-weight: 700;
       }
 
+      .task-state-select {
+        --state-color: var(--border);
+        border: 2px solid var(--state-color);
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .task-state-select:focus {
+        box-shadow: 0 0 0 2px rgba(94, 234, 212, 0.35);
+      }
+
       .footer {
         padding: 1rem;
         font-size: 0.85rem;
@@ -256,19 +347,13 @@
         border-top: 1px solid var(--border);
       }
 
-      @media (max-width: 1200px) {
-        .cards {
-          grid-template-columns: repeat(2, minmax(240px, 1fr));
-        }
-      }
-
       @media (max-width: 700px) {
         header {
           align-items: flex-start;
         }
 
-        .cards {
-          grid-template-columns: 1fr;
+        .kanban {
+          grid-auto-columns: minmax(220px, 1fr);
         }
       }
     </style>
@@ -322,6 +407,53 @@
         ];
         const GOOGLE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 
+        const TASK_STATE_IDS = Object.freeze({
+          TO_REFINE: "to_refine",
+          TO_DO: "to_do",
+          IN_PROGRESS: "in_progress",
+          PAUSED: "paused",
+          DONE: "done",
+          REJECTED: "rejected",
+        });
+
+        const TASK_STATES = [
+          {
+            id: TASK_STATE_IDS.TO_REFINE,
+            label: "Da pensare meglio",
+            color: "#9ca3af",
+          },
+          {
+            id: TASK_STATE_IDS.TO_DO,
+            label: "Da fare",
+            color: "#38bdf8",
+          },
+          {
+            id: TASK_STATE_IDS.IN_PROGRESS,
+            label: "In evoluzione",
+            color: "#facc15",
+          },
+          {
+            id: TASK_STATE_IDS.PAUSED,
+            label: "Paused",
+            color: "#f97316",
+          },
+          {
+            id: TASK_STATE_IDS.DONE,
+            label: "Fatto",
+            color: "#22c55e",
+          },
+          {
+            id: TASK_STATE_IDS.REJECTED,
+            label: "Rejected",
+            color: "#ef4444",
+          },
+        ];
+
+        const DEFAULT_TASK_STATE = TASK_STATE_IDS.TO_DO;
+        const TASK_STATE_BY_ID = new Map(
+          TASK_STATES.map((state) => [state.id, state])
+        );
+
         const tabs = [
           { id: "roles", label: "Ruoli" },
           { id: "lt", label: "Obiettivi a lungo termine" },
@@ -343,6 +475,7 @@
             );
           },
           replace(nextState) {
+            normalizeDomain(nextState);
             this.data = nextState;
             this.persist();
           },
@@ -360,7 +493,9 @@
             const raw = localStorage.getItem(STORAGE_KEYS.STATE);
             if (!raw) return seedState();
             const parsed = JSON.parse(raw);
-            return validate(parsed) ? parsed : seedState();
+            if (!validate(parsed)) return seedState();
+            normalizeDomain(parsed);
+            return parsed;
           } catch (err) {
             console.warn("Impossibile leggere lo stato salvato, uso seed.", err);
             return seedState();
@@ -405,12 +540,14 @@
             description: "Definire spazio embedding e chunking",
             importance: 4,
             due: datePlus(30),
+            state: TASK_STATE_IDS.TO_DO,
           };
 
           shortTerm.tasks.push(task);
           longTerm.st_goals.push(shortTerm);
           role.lt_goals.push(longTerm);
           seeded.roles.push(role);
+          normalizeDomain(seeded);
           return seeded;
         }
 
@@ -421,6 +558,48 @@
             Array.isArray(candidate.roles) &&
             "nextId" in candidate
           );
+        }
+
+        function getTaskStateId(stateId) {
+          return TASK_STATE_BY_ID.has(stateId) ? stateId : DEFAULT_TASK_STATE;
+        }
+
+        function getTaskStateConfig(stateId) {
+          return TASK_STATE_BY_ID.get(getTaskStateId(stateId));
+        }
+
+        function normalizeTask(task) {
+          if (!task || typeof task !== "object") return;
+          task.state = getTaskStateId(task.state);
+        }
+
+        function normalizeDomain(root) {
+          if (!root || typeof root !== "object") return;
+          if (!Array.isArray(root.roles)) {
+            root.roles = [];
+          }
+          root.roles.forEach((role) => {
+            role.lt_goals = Array.isArray(role.lt_goals) ? role.lt_goals : [];
+            role.lt_goals.forEach((lt) => {
+              lt.st_goals = Array.isArray(lt.st_goals) ? lt.st_goals : [];
+              lt.st_goals.forEach((st) => {
+                st.tasks = Array.isArray(st.tasks) ? st.tasks : [];
+                st.tasks.forEach(normalizeTask);
+              });
+            });
+          });
+        }
+
+        function findTaskRef({ roleId, ltId, stId, taskId }) {
+          const role = AppState.data.roles.find((candidate) => candidate.id === roleId);
+          if (!role) return null;
+          const lt = role.lt_goals.find((candidate) => candidate.id === ltId);
+          if (!lt) return null;
+          const st = lt.st_goals.find((candidate) => candidate.id === stId);
+          if (!st) return null;
+          const task = st.tasks.find((candidate) => candidate.id === taskId);
+          if (!task) return null;
+          return { role, lt, st, task };
         }
 
         // =============================================================
@@ -444,18 +623,6 @@
         function toImportanceOrNull(value) {
           if (value == null || value === "") return null;
           return toImportance(value, 1);
-        }
-
-        function escapeHtml(value) {
-          return (value || "").replace(/[&<>"']/g, (match) =>
-            ({
-              "&": "&amp;",
-              "<": "&lt;",
-              ">": "&gt;",
-              '"': "&quot;",
-              "'": "&#39;",
-            })[match]
-          );
         }
 
         // =============================================================
@@ -649,6 +816,47 @@
           });
           if (selectedId) select.value = selectedId;
           return select;
+        }
+
+        function createTaskStateSelect(task) {
+          const select = document.createElement("select");
+          select.className = "task-state-select";
+          TASK_STATES.forEach((state) => {
+            const option = document.createElement("option");
+            option.value = state.id;
+            option.textContent = state.label;
+            select.appendChild(option);
+          });
+          select.value = getTaskStateId(task.state);
+          updateTaskStateSelectStyle(select);
+          select.addEventListener("change", () => {
+            task.state = select.value;
+            updateTaskStateSelectStyle(select);
+            AppState.persist();
+          });
+          return select;
+        }
+
+        function updateTaskStateSelectStyle(select) {
+          const config = getTaskStateConfig(select.value);
+          if (!config) return;
+          select.style.setProperty("--state-color", config.color);
+          select.style.borderColor = config.color;
+          select.style.boxShadow = `0 0 0 1px ${config.color} inset`;
+          select.title = config.label;
+        }
+
+        function createBadge(text) {
+          const badge = document.createElement("span");
+          badge.className = "badge";
+          badge.textContent = text;
+          return badge;
+        }
+
+        function truncateText(value, max) {
+          const text = (value || "").trim();
+          if (!text) return "—";
+          return text.length > max ? `${text.slice(0, max - 1)}…` : text;
         }
 
         function confirmDelete(message) {
@@ -1294,6 +1502,12 @@
                   }),
               },
               {
+                label: "Stato",
+                key: (row) =>
+                  getTaskStateConfig(row.task.state).label.toLowerCase(),
+                render: (row) => createTaskStateSelect(row.task),
+              },
+              {
                 label: "Importanza (ereditata se vuota)",
                 key: (row) =>
                   effectiveImportance(
@@ -1389,88 +1603,180 @@
         // =============================================================
         function renderDashboard() {
           dom.view.innerHTML = "";
-          const cardsContainer = document.createElement("div");
-          cardsContainer.className = "cards";
+          const kanban = document.createElement("div");
+          kanban.className = "kanban";
 
-          const longTermItems = [];
-          AppState.data.roles.forEach((role) =>
-            role.lt_goals.forEach((lt) => longTermItems.push({ role, lt }))
-          );
-          longTermItems.sort((a, b) => (a.lt.due || "").localeCompare(b.lt.due || ""));
-          longTermItems.slice(0, 8).forEach((item) => {
-            cardsContainer.appendChild(createLongTermCard(item));
+          const columns = new Map();
+          TASK_STATES.forEach((state) => {
+            const column = createKanbanColumn(state);
+            columns.set(state.id, column);
+            kanban.appendChild(column.element);
           });
 
-          const upcomingTasks = [];
           AppState.data.roles.forEach((role) =>
             role.lt_goals.forEach((lt) =>
               lt.st_goals.forEach((st) =>
                 st.tasks.forEach((task) => {
-                  const due = effectiveDueDate(
-                    task,
-                    effectiveDueDate(st, lt.due)
-                  );
-                  if (due) {
-                    const diff = (new Date(due) - new Date()) / 86400000;
-                    if (diff <= 14) {
-                      upcomingTasks.push({ role, lt, st, task, due });
-                    }
+                  const stateId = getTaskStateId(task.state);
+                  const column = columns.get(stateId);
+                  if (!column) return;
+                  if (column.placeholder.isConnected) {
+                    column.body.removeChild(column.placeholder);
                   }
+                  column.body.appendChild(
+                    createKanbanCard({ role, lt, st, task })
+                  );
+                  column.count += 1;
                 })
               )
             )
           );
 
-          upcomingTasks.sort((a, b) => (a.due || "").localeCompare(b.due || ""));
-          upcomingTasks.slice(0, 8).forEach((item) => {
-            cardsContainer.appendChild(createTaskCard(item));
+          columns.forEach((column) => {
+            if (!column.count && !column.placeholder.isConnected) {
+              column.body.appendChild(column.placeholder);
+            }
+            column.countEl.textContent = String(column.count);
           });
 
-          dom.view.appendChild(cardsContainer);
+          dom.view.appendChild(kanban);
         }
 
-        function createLongTermCard({ role, lt }) {
-          const card = document.createElement("article");
-          card.className = "card";
-          const title = document.createElement("div");
-          title.className = "title";
-          title.textContent = lt.title;
-          const meta = document.createElement("div");
-          meta.innerHTML = `
-            <span class="badge">Ruolo: ${escapeHtml(role.title)}</span>
-            <span class="badge">Imp: ${lt.importance}</span>
-            <span class="badge">Scadenza: ${escapeHtml(lt.due || "-")}</span>`;
-          const desc = document.createElement("div");
-          desc.textContent = lt.description || "—";
-          const goBtn = button("Vai a LT", "", () => {
-            activeTab = "lt";
-            render();
-          });
-          card.append(title, meta, desc, goBtn);
-          return card;
+        function createKanbanColumn(state) {
+          const column = document.createElement("section");
+          column.className = "kanban-column";
+          column.dataset.state = state.id;
+
+          const header = document.createElement("div");
+          header.className = "kanban-column-header";
+          const title = document.createElement("span");
+          title.textContent = state.label;
+          const count = document.createElement("span");
+          count.className = "kanban-column-count";
+          count.textContent = "0";
+          header.append(title, count);
+
+          const body = document.createElement("div");
+          body.className = "kanban-column-body";
+          body.dataset.state = state.id;
+
+          const placeholder = document.createElement("p");
+          placeholder.className = "kanban-column-placeholder";
+          placeholder.textContent = "Nessuna attività. Trascina qui per cambiare stato.";
+          body.appendChild(placeholder);
+
+          setupDropZone(column, body, state.id);
+
+          column.append(header, body);
+
+          return {
+            element: column,
+            body,
+            countEl: count,
+            placeholder,
+            count: 0,
+          };
         }
 
-        function createTaskCard({ role, lt, st, task, due }) {
-          const card = document.createElement("article");
-          card.className = "card";
-          const title = document.createElement("div");
-          title.className = "title";
-          title.textContent = task.title;
-          const meta = document.createElement("div");
-          meta.innerHTML = `
-            <span class="badge">${escapeHtml(role.title)} › ${escapeHtml(lt.title)} › ${escapeHtml(st.title)}</span>
-            <span class="badge">Imp: ${effectiveImportance(
-              task,
-              effectiveImportance(st, lt.importance)
-            )}</span>
-            <span class="badge">Scadenza: ${escapeHtml(due || "-")}</span>`;
-          const desc = document.createElement("div");
-          desc.textContent = task.description || "—";
-          const goBtn = button("Vai a Attività", "", () => {
-            activeTab = "tasks";
+        function setupDropZone(columnElement, dropTarget, stateId) {
+          dropTarget.addEventListener("dragenter", (event) => {
+            event.preventDefault();
+            columnElement.classList.add("dragover");
+          });
+
+          dropTarget.addEventListener("dragover", (event) => {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "move";
+            columnElement.classList.add("dragover");
+          });
+
+          dropTarget.addEventListener("dragleave", (event) => {
+            const destination = event.relatedTarget;
+            if (!destination || !columnElement.contains(destination)) {
+              columnElement.classList.remove("dragover");
+            }
+          });
+
+          dropTarget.addEventListener("drop", (event) => {
+            event.preventDefault();
+            columnElement.classList.remove("dragover");
+            const payload = event.dataTransfer.getData("text/plain");
+            if (!payload) return;
+            let identifiers;
+            try {
+              identifiers = JSON.parse(payload);
+            } catch (error) {
+              console.warn("Payload drop non valido", error);
+              return;
+            }
+            if (!identifiers) return;
+            const ref = findTaskRef(identifiers);
+            if (!ref) return;
+            const nextState = stateId;
+            if (ref.task.state === nextState) return;
+            ref.task.state = nextState;
+            normalizeTask(ref.task);
+            AppState.persist();
             render();
           });
-          card.append(title, meta, desc, goBtn);
+        }
+
+        function createKanbanCard({ role, lt, st, task }) {
+          const config = getTaskStateConfig(task.state);
+          const card = document.createElement("article");
+          card.className = "kanban-card";
+          card.draggable = true;
+          card.dataset.roleId = role.id;
+          card.dataset.ltId = lt.id;
+          card.dataset.stId = st.id;
+          card.dataset.taskId = task.id;
+          card.style.borderTop = `3px solid ${config.color}`;
+
+          card.addEventListener("dragstart", (event) => {
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData(
+              "text/plain",
+              JSON.stringify({
+                roleId: role.id,
+                ltId: lt.id,
+                stId: st.id,
+                taskId: task.id,
+              })
+            );
+            card.classList.add("dragging");
+          });
+
+          card.addEventListener("dragend", () => {
+            card.classList.remove("dragging");
+          });
+
+          const hierarchy = document.createElement("div");
+          hierarchy.className = "kanban-card-hierarchy";
+          hierarchy.textContent = [role.title, lt.title, st.title]
+            .map((value) => value || "—")
+            .join(" › ");
+
+          const title = document.createElement("div");
+          title.className = "title";
+          title.textContent = task.title || "(Senza titolo)";
+
+          const description = document.createElement("div");
+          description.className = "description";
+          description.textContent = truncateText(task.description, 140);
+
+          const importance = effectiveImportance(
+            task,
+            effectiveImportance(st, lt.importance)
+          );
+          const due = effectiveDueDate(task, effectiveDueDate(st, lt.due));
+          const meta = document.createElement("div");
+          meta.className = "kanban-card-meta";
+          meta.append(
+            createBadge(`Imp: ${importance ?? "-"}`),
+            createBadge(`Scadenza: ${due || "-"}`)
+          );
+
+          card.append(hierarchy, title, description, meta);
           return card;
         }
 
@@ -1509,13 +1815,16 @@
         }
 
         function createTask(title, description, importance, due) {
-          return {
+          const task = {
             id: AppState.nextId(),
             title,
             description: description || "",
             importance: toImportanceOrNull(importance),
             due: due || null,
+            state: DEFAULT_TASK_STATE,
           };
+          normalizeTask(task);
+          return task;
         }
 
         // =============================================================
