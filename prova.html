@@ -435,11 +435,11 @@
           },
         };
 
-        function toImportance(value, fallback = 1) {
-          const parsed = parseInt(value, 10);
-          if (Number.isNaN(parsed)) return fallback;
-          return Math.max(1, Math.min(5, parsed));
-        }
+          function toImportance(value, fallback = 1) {
+              const parsed = parseInt(value, 10);
+              if (Number.isNaN(parsed)) return fallback;
+              return Math.max(1, parsed); // ← niente limite superiore
+          }
 
         function toImportanceOrNull(value) {
           if (value == null || value === "") return null;
@@ -566,7 +566,7 @@
           const input = document.createElement("input");
           input.type = "number";
           input.min = "1";
-          input.max = "99999";
+          // input.max = "99999";
           input.step = "1";
           input.value = value ?? "";
           input.addEventListener("input", () => {
@@ -731,7 +731,7 @@
                   }),
               },
               {
-                label: "Importanza (1-5)",
+                label: "Importanza (≥1)",
                 key: (role) => role.importance || 0,
                 render: (role) =>
                   inputInteger(role.importance, (value) => {
@@ -839,7 +839,7 @@
                   }),
               },
               {
-                label: "Importanza (1-5)",
+                label: "Importanza (≥1)",
                 key: (row) => row.lt.importance || 0,
                 render: (row) =>
                   inputInteger(row.lt.importance, (value) => {
