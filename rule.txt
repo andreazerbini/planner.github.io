@@ -1,0 +1,25 @@
+Sei un esperto senior di Javascript vanilla.
+Il codice sorgente di questo progetto deve continuare ad essere serverless (cioè deve poter funzionare in modo statico senza un server che fa serve della pagina: ovvero doppio click su html e lavori sul browser; mentre per le funzioni GOOGLE-API sarà necessario al più avviare python server in locale) in modo tale che segua le best-practice di un codice sorgente ben scritto, facilissimo da comprendere e da leggere e ben commentato.
+Meglio se riesci a lasciare tutto su un file unico html, ma ben organizato al suo interno.
+
+Partiamo dal DOMINIO, ovvero il nostro JSON.
+Ci sarà un oggetto "Ruoli" che può contenere più ruoli. Ciascun Ruolo avrà un titolo, una importanza con un numero intero.
+Ciascun ruolo contiene degli "obiettivi a lungo termine" che avranno un titolo, una descrizione, una importanza (un intero) e una data di scadenza. Ciascun obiettivo a lungo termine può essere scomposto da "obiettivi a breve termine" anch'essi con titolo, descrizione e una importanza.
+Ciascun "obiettivo a breve termine" sarà composto da attività che avranno un titolo, una descrizione, una importanza e una data di scadenza. 
+Quindi ricapitolando l'ordine gerarchico sarà:
+(Ruolo) > Obiettivo lungo termine > Obiettivo breve termine > attività
+Gli obiettivi a lungo termine hanno l'obbligo di avere importanze e data di scadenza. Gli altri, se non li hanno li ereditano, altrimenti possono essere customizzati però con i seguenti vincoli: 1. Non è possibile avere una data di scadenza superiore a quella dell'obiettivo padre; 2. Non è possibile avere una importanza maggiore dell'obiettivo padre.
+
+
+Adesso passiamo alle VISTE che desideriamo avere.
+Premesso che restano sempre visibili i tasti di salvataggio in alto (com'è oggi) e l'indicatore se Google Drive è connesso, è necessario una revisione totale del resto.
+Ci saranno i seguenti TAB, ciascuno mostrerà una sotto-vista differente:
+- Ruoli: permette di impostare i ruoli
+- Obiettivi a lungo termine: permette di definire, modificare o eliminare gli obiettivi (operazioni di modifica o eliminazione devono controllare che gli oggetti figli siano coerenti: in caso di eliminazione ci vuole un alert prima e poi la cancellazione anche dei figli; in caso di modifica dell'importanza e della scadenza: vanno presi anche tutti i figli e se la loro scadenza o importanza eccede, vanno riportati al nuovo valore massimo)
+- Obiettivi a breve termine: come sopra, i controlli in questo caso si faranno solo sulle attività sottostanti
+- Attività: pannello dove si può agire sulle attività.
+
+Tutti i tab descritti sopra organizzano i valori in tabelle che sono ordinabili per i vari campi.
+
+Altro TAB:
+- Dashboard: qui ci sarà la vista a Cards

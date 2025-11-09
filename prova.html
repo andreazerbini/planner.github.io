@@ -487,18 +487,20 @@
           }
         }
 
-        function cascadeAfterParentChange() {
-          AppState.data.roles.forEach((role) => {
-            role.lt_goals.forEach((ltGoal) => {
-              ltGoal.st_goals.forEach((stGoal) => {
-                clampChildToParent(stGoal, ltGoal);
-                stGoal.tasks.forEach((task) =>
-                  clampChildToParent(task, stGoal.due ? stGoal : ltGoal)
-                );
+          function cascadeFromRole(role) {
+              role.lt_goals.forEach((lt) => {
+                  // LT non può superare il Ruolo
+                  clampChildToParent(lt, role);
+
+                  lt.st_goals.forEach((st) => {
+                      clampChildToParent(st, lt);
+                      st.tasks.forEach((task) =>
+                          clampChildToParent(task, st.due ? st : lt)
+                      );
+                  });
               });
-            });
-          });
-        }
+          }
+
 
         // =============================================================
         // UI references e gestione tab
@@ -575,13 +577,39 @@
           return input;
         }
 
-        function inputDate(value, onInput) {
-          const input = document.createElement("input");
-          input.type = "date";
-          input.value = value || "";
-          input.addEventListener("input", () => onInput(input.value || null));
-          return input;
-        }
+          function inputDate(value, onInput, { readOnly = false } = {}) {
+              const input = document.createElement("input");
+              input.type = "date";
+              input.value = value || "";
+
+              // Solo se esplicitamente richiesto, blocca la digitazione
+              if (readOnly) {
+                  input.readOnly = true;
+                  input.addEventListener("keydown", (e) => e.preventDefault());
+              }
+
+              // Apri il calendario automaticamente al focus
+              input.addEventListener("focus", () => {
+                  // Questo funziona sulla maggior parte dei browser moderni
+                  try {
+                      input.showPicker?.();
+                  } catch (e) {
+                      // Fallback silenzioso se non supportato
+                  }
+              });
+
+              // Aggiorna lo stato quando cambia la data
+              input.addEventListener("change", () => {
+                  onInput(input.value || null);
+              });
+
+              // Anche su input per catturare la digitazione
+              input.addEventListener("input", () => {
+                  onInput(input.value || null);
+              });
+
+              return input;
+          }
 
         function textArea(value, onInput) {
           const area = document.createElement("textarea");
@@ -733,11 +761,20 @@
               {
                 label: "Importanza (≥1)",
                 key: (role) => role.importance || 0,
-                render: (role) =>
-                  inputInteger(role.importance, (value) => {
-                    role.importance = toImportance(value ?? 1);
-                    AppState.persist();
-                  }),
+                  render: (role) => {
+                      const el = inputInteger(role.importance, (value) => {
+                          role.importance = toImportance(value ?? 1); // solo stato
+                      });
+                      const commit = () => {
+                          cascadeFromRole(role);
+                          AppState.persist();
+                          render();
+                      };
+                      el.addEventListener("blur", commit);
+                      el.addEventListener("change", commit); // per sicurezza
+                      el.addEventListener("keydown", (e) => { if (e.key === "Enter") el.blur(); });
+                      return el;
+                  },
               },
               {
                 label: "Azioni",
@@ -842,22 +879,42 @@
                 label: "Importanza (≥1)",
                 key: (row) => row.lt.importance || 0,
                 render: (row) =>
-                  inputInteger(row.lt.importance, (value) => {
-                    row.lt.importance = toImportance(value ?? 1);
-                    cascadeAfterParentChange();
-                    AppState.persist();
-                  }),
+                    (() => {
+                        const el = inputInteger(row.lt.importance, (value) => {
+                            row.lt.importance = toImportance(value ?? 1);
+                        });
+                        const commit = () => {
+                            clampChildToParent(row.lt, row.role);
+                            cascadeFromRole(row.role);
+                            AppState.persist();
+                            render();
+                        };
+                        el.addEventListener("blur", commit);
+                        el.addEventListener("change", commit);
+                        el.addEventListener("keydown", (e) => { if (e.key === "Enter") el.blur(); });
+                        return el;
+                    })(),
               },
               {
                 label: "Scadenza",
                 key: (row) => row.lt.due || "",
                 render: (row) =>
-                  inputDate(row.lt.due, (value) => {
-                    row.lt.due = value || DateUtils.today();
-                    cascadeAfterParentChange();
-                    AppState.persist();
-                  }),
-              },
+                    (() => {
+                        const el = inputDate(row.lt.due, (value) => {
+                            row.lt.due = value || DateUtils.today();
+                            }, { readOnly: false }); // ← Cambiato a false
+                        const commit = () => {
+                            clampChildToParent(row.lt, row.role);
+                            cascadeFromRole(row.role);
+                            AppState.persist();
+                            render();
+                        };
+                        el.addEventListener("blur", commit);
+                        el.addEventListener("change", commit);
+                        return el;
+                    })(),
+              }
+              ,
               {
                 label: "Azioni",
                 render: (row) => {
@@ -1007,23 +1064,34 @@
                 label: "Importanza (ereditata se vuota)",
                 key: (row) =>
                   effectiveImportance(row.st, row.lt.importance ?? 1) || 0,
-                render: (row) =>
-                  inputInteger(row.st.importance, (value) => {
-                    row.st.importance = value;
-                    clampChildToParent(row.st, row.lt);
-                    AppState.persist();
-                  }),
+                    render: (row) => {
+                        const el = inputInteger(row.st.importance, (value) => {
+                            row.st.importance = value;
+                        });
+                        el.addEventListener("blur", () => {
+                            clampChildToParent(row.st, row.lt);
+                            AppState.persist();
+                            render();
+                        });
+                        return el;
+                    }
               },
               {
                 label: "Scadenza (ereditata se vuota)",
                 key: (row) => effectiveDueDate(row.st, row.lt.due) || "",
-                render: (row) =>
-                  inputDate(row.st.due, (value) => {
-                    row.st.due = value;
-                    clampChildToParent(row.st, row.lt);
-                    AppState.persist();
-                  }),
-              },
+                render: (row) => {
+                    const el = inputDate(row.st.due, (value) => {
+                        row.st.due = value;
+                        }, { readOnly: false }); // ← Cambiato a false
+                    el.addEventListener("blur", () => {
+                        clampChildToParent(row.st, row.lt);
+                        AppState.persist();
+                        render();
+                    });
+                    return el;
+                }
+              }
+              ,
               {
                 label: "Azioni",
                 render: (row) => {
@@ -1232,27 +1300,34 @@
                     row.task,
                     effectiveImportance(row.st, row.lt.importance)
                   ) || 0,
-                render: (row) =>
-                  inputInteger(row.task.importance, (value) => {
-                    row.task.importance = value;
-                    clampChildToParent(row.task, row.st.due ? row.st : row.lt);
-                    AppState.persist();
-                  }),
+                  render: (row) => {
+                      return inputInteger(row.task.importance, (value) => {
+                          row.task.importance = value;
+                          clampChildToParent(row.task, row.st.due ? row.st : row.lt);
+                          AppState.persist();
+                      });
+              }
               },
-              {
-                label: "Scadenza (ereditata se vuota)",
-                key: (row) =>
-                  effectiveDueDate(
-                    row.task,
-                    effectiveDueDate(row.st, row.lt.due)
-                  ) || "",
-                render: (row) =>
-                  inputDate(row.task.due, (value) => {
-                    row.task.due = value;
-                    clampChildToParent(row.task, row.st.due ? row.st : row.lt);
-                    AppState.persist();
-                  }),
-              },
+                {
+                    label: "Scadenza (ereditata se vuota)",
+                    key: (row) =>
+                        effectiveDueDate(
+                            row.task,
+                            effectiveDueDate(row.st, row.lt.due)
+                        ) || "",
+                    render: (row) => {
+                        const el = inputDate(row.task.due, (value) => {
+                            row.task.due = value;
+                        }, { readOnly: false }); // ← Cambiato a false
+                        el.addEventListener("blur", () => {
+                            clampChildToParent(row.task, row.st.due ? row.st : row.lt);
+                            AppState.persist();
+                            render();
+                        });
+                        return el;
+                    }
+                }
+              ,
               {
                 label: "Azioni",
                 render: (row) => {
