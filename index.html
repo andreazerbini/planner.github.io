@@ -883,11 +883,14 @@
         });
 
         const TaskFilters = {
-          importance: "all",
+          importanceMin: null,
+          importanceMax: null,
           dueFrom: null,
           dueTo: null,
+          state: "all",
           search: "",
         };
+        let taskSearchDraft = TaskFilters.search;
 
         function getAllTaskRefs() {
           const refs = [];
@@ -906,15 +909,33 @@
         }
 
         function taskMatchesFilters(ref) {
-          const { importance, dueFrom, dueTo, search } = TaskFilters;
+          const {
+            importanceMin,
+            importanceMax,
+            dueFrom,
+            dueTo,
+            state,
+            search,
+          } = TaskFilters;
           const taskImportance =
             ref.task.importance != null
-              ? String(toImportance(ref.task.importance, 1))
+              ? toImportance(ref.task.importance, 1)
               : null;
 
-          if (importance === "none") {
-            if (taskImportance != null) return false;
-          } else if (importance !== "all" && importance !== taskImportance) {
+          if (importanceMin != null) {
+            if (taskImportance == null || taskImportance < importanceMin) {
+              return false;
+            }
+          }
+
+          if (importanceMax != null) {
+            if (taskImportance == null || taskImportance > importanceMax) {
+              return false;
+            }
+          }
+
+          const taskState = ref.task.state || DEFAULT_TASK_STATE;
+          if (state !== "all" && taskState !== state) {
             return false;
           }
 
@@ -961,6 +982,9 @@
             }
           });
           if (!changed) return;
+          if (Object.prototype.hasOwnProperty.call(patch, "search")) {
+            taskSearchDraft = TaskFilters.search;
+          }
           rerenderTaskView();
         }
 
@@ -976,45 +1000,49 @@
           const container = document.createElement("div");
           container.className = "controls filters";
 
-          const importanceSelect = document.createElement("select");
-          const importanceOptions = [
-            { value: "all", label: "Tutte" },
-            { value: "none", label: "Senza importanza" },
-          ];
-          const dynamicImportances = Array.from(
-            new Set(
-              getAllTaskRefs()
-                .map((ref) =>
-                  ref.task.importance != null
-                    ? String(toImportance(ref.task.importance, 1))
-                    : null
-                )
-                .filter(Boolean)
-            )
-          ).sort((a, b) => Number(a) - Number(b));
-          dynamicImportances.forEach((value) => {
-            importanceOptions.push({ value, label: value });
-          });
-          if (
-            TaskFilters.importance !== "all" &&
-            TaskFilters.importance !== "none" &&
-            TaskFilters.importance &&
-            !dynamicImportances.includes(TaskFilters.importance)
-          ) {
-            importanceOptions.push({
-              value: TaskFilters.importance,
-              label: TaskFilters.importance,
+          const importanceMinInput = document.createElement("input");
+          importanceMinInput.type = "number";
+          importanceMinInput.min = "1";
+          importanceMinInput.placeholder = "≥";
+          importanceMinInput.value =
+            TaskFilters.importanceMin != null ? TaskFilters.importanceMin : "";
+          importanceMinInput.addEventListener("change", () => {
+            const value = importanceMinInput.value.trim();
+            updateTaskFilters({
+              importanceMin: value === "" ? null : toImportance(value, 1),
             });
-          }
-          importanceOptions.forEach((option) => {
+          });
+
+          const importanceMaxInput = document.createElement("input");
+          importanceMaxInput.type = "number";
+          importanceMaxInput.min = "1";
+          importanceMaxInput.placeholder = "≤";
+          importanceMaxInput.value =
+            TaskFilters.importanceMax != null ? TaskFilters.importanceMax : "";
+          importanceMaxInput.addEventListener("change", () => {
+            const value = importanceMaxInput.value.trim();
+            updateTaskFilters({
+              importanceMax: value === "" ? null : toImportance(value, 1),
+            });
+          });
+
+          const stateSelect = document.createElement("select");
+          const stateOptions = [
+            { value: "all", label: "Tutti" },
+            ...TASK_STATES.map((state) => ({
+              value: state.id,
+              label: state.label,
+            })),
+          ];
+          stateOptions.forEach((option) => {
             const el = document.createElement("option");
             el.value = option.value;
             el.textContent = option.label;
-            importanceSelect.appendChild(el);
+            stateSelect.appendChild(el);
           });
-          importanceSelect.value = TaskFilters.importance;
-          importanceSelect.addEventListener("change", () =>
-            updateTaskFilters({ importance: importanceSelect.value })
+          stateSelect.value = TaskFilters.state;
+          stateSelect.addEventListener("change", () =>
+            updateTaskFilters({ state: stateSelect.value })
           );
 
           const dueFromInput = document.createElement("input");
@@ -1037,16 +1065,25 @@
             updateTaskFilters({ dueTo: dueToInput.value || null })
           );
 
-          const searchInput = inputText(
-            TaskFilters.search,
-            "Cerca titolo o descrizione…",
-            (value) => updateTaskFilters({ search: value })
-          );
+          const searchInput = document.createElement("input");
+          searchInput.type = "text";
+          searchInput.placeholder = "Cerca titolo o descrizione…";
+          searchInput.value = taskSearchDraft || "";
+          searchInput.addEventListener("input", () => {
+            taskSearchDraft = searchInput.value;
+          });
+          searchInput.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+              updateTaskFilters({ search: taskSearchDraft });
+            }
+          });
 
           container.append(
-            createFilterField("Importanza", importanceSelect),
+            createFilterField("Importanza da", importanceMinInput),
+            createFilterField("Importanza a", importanceMaxInput),
             createFilterField("Scadenza da", dueFromInput),
             createFilterField("Scadenza a", dueToInput),
+            createFilterField("Stato", stateSelect),
             createFilterField("Ricerca", searchInput),
             button("Esporta CSV", "", () => onExport?.()),
             button("Importa CSV", "", () => onImport?.())

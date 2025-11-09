@@ -17,7 +17,7 @@ Ci saranno i seguenti TAB, ciascuno mostrerà una sotto-vista differente:
 - Ruoli: permette di impostare i ruoli.
 - Obiettivi a lungo termine: permette di definire, modificare o eliminare gli obiettivi (operazioni di modifica o eliminazione devono controllare che gli oggetti figli siano coerenti: in caso di eliminazione ci vuole un alert prima e poi la cancellazione anche dei figli; in caso di modifica dell'importanza e della scadenza: vanno presi anche tutti i figli e se la loro scadenza o importanza eccede, vanno riportati al nuovo valore massimo).
 - Obiettivi a breve termine: come sopra, i controlli in questo caso si faranno solo sulle attività sottostanti.
-- Attività: pannello dove si può agire sulle attività, modificando anche lo stato tramite un menù a tendina. La vista espone un blocco filtri condiviso con la Dashboard (importanza, intervallo di scadenza con estremi aperti e ricerca full text su titolo/descrizione) e pulsanti per esportare in CSV tutte le attività visibili e per importare un CSV con la stessa struttura, associando i task ai genitori per nome e creando gli antenati mancanti.
+- Attività: pannello dove si può agire sulle attività, modificando anche lo stato tramite un menù a tendina. La vista espone un blocco filtri condiviso con la Dashboard (intervallo di importanza con estremi aperti, stato, intervallo di scadenza con estremi aperti e ricerca full text su titolo/descrizione) e pulsanti per esportare in CSV tutte le attività visibili e per importare un CSV con la stessa struttura, associando i task ai genitori per nome e creando gli antenati mancanti.
 
 Tutti i tab descritti sopra organizzano i valori in tabelle che sono ordinabili per i vari campi.
 
