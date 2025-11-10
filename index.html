@@ -202,6 +202,80 @@
         gap: 0.4rem;
       }
 
+      .controls.filters {
+        align-items: flex-end;
+        gap: 0.75rem;
+      }
+
+      .filter-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        min-width: 140px;
+        font-size: 0.75rem;
+        color: var(--muted);
+      }
+
+      .filter-field.filter-tree {
+        min-width: 260px;
+        flex: 1 1 320px;
+      }
+
+      .filter-field.filter-tree .hierarchy-filter {
+        width: 100%;
+      }
+
+      .filter-field input,
+      .filter-field select {
+        width: 100%;
+      }
+
+      .hierarchy-filter {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        max-height: 220px;
+        padding: 0.35rem 0.45rem;
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+        background: #0b1324;
+        overflow: auto;
+      }
+
+      .hierarchy-node {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+
+      .hierarchy-row {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        color: var(--text);
+        font-size: 0.78rem;
+      }
+
+      .hierarchy-row.is-empty {
+        color: var(--muted);
+        font-style: italic;
+      }
+
+      .hierarchy-row span {
+        flex: 1;
+      }
+
+      .hierarchy-children {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+        margin-left: 1.5rem;
+      }
+
+      .hierarchy-children .hierarchy-children {
+        margin-left: 1.25rem;
+      }
+
       input[type="text"],
       input[type="number"],
       input[type="date"],
@@ -387,6 +461,12 @@
     </footer>
 
     <input id="filePicker" type="file" accept="application/json" hidden />
+    <input
+      id="taskCsvPicker"
+      type="file"
+      accept="text/csv,.csv"
+      hidden
+    />
 
     <script>
       (() => {
@@ -676,6 +756,7 @@
           tabs: document.getElementById("tabs"),
           view: document.getElementById("view"),
           filePicker: document.getElementById("filePicker"),
+          taskCsvPicker: document.getElementById("taskCsvPicker"),
           exportBtn: document.getElementById("export"),
           importBtn: document.getElementById("importBtn"),
           saveFileBtn: document.getElementById("saveFile"),
@@ -686,6 +767,28 @@
           driveOpenBtn: document.getElementById("driveOpen"),
           driveSaveBtn: document.getElementById("driveSave"),
         };
+
+        function requestTaskCsvImport() {
+          if (!dom.taskCsvPicker) return;
+          dom.taskCsvPicker.value = "";
+          dom.taskCsvPicker.click();
+        }
+
+        dom.taskCsvPicker?.addEventListener("change", async (event) => {
+          const file = event.target.files?.[0];
+          if (!file) return;
+          try {
+            const text = await file.text();
+            const imported = importTasksFromCsvContent(text);
+            AppState.persist();
+            render();
+            alert(`Importate ${imported} attività da CSV ✅`);
+          } catch (error) {
+            alert(`Errore import CSV: ${error.message || error}`);
+          } finally {
+            dom.taskCsvPicker.value = "";
+          }
+        });
 
         let activeTab = "roles";
 
@@ -791,6 +894,684 @@
           if (className) btn.className = className;
           btn.addEventListener("click", onClick);
           return btn;
+        }
+
+        const TASK_CSV_FILE_NAME = "kanban-covey-tasks.csv";
+        const TASK_CSV_HEADERS = Object.freeze([
+          "Ruolo",
+          "LT",
+          "ST",
+          "Titolo",
+          "Descrizione",
+          "Importanza",
+          "Scadenza",
+          "Stato",
+        ]);
+
+        const TASK_CSV_COLUMN_ALIASES = Object.freeze({
+          role: ["ruolo", "role"],
+          lt: ["lt", "obiettivo lt", "lungo termine", "long term", "long-term"],
+          st: [
+            "st",
+            "bt",
+            "obiettivo bt",
+            "breve termine",
+            "short term",
+            "short-term",
+          ],
+          title: ["titolo", "title"],
+          description: ["descrizione", "description"],
+          importance: ["importanza", "importance"],
+          due: ["scadenza", "due", "deadline", "data"],
+          state: ["stato", "state"],
+        });
+
+        const TASK_CSV_COLUMN_LABELS = Object.freeze({
+          role: "Ruolo",
+          lt: "LT",
+          st: "ST",
+          title: "Titolo",
+          description: "Descrizione",
+          importance: "Importanza",
+          due: "Scadenza",
+          state: "Stato",
+        });
+
+        function createHierarchyState() {
+          return Object.create(null);
+        }
+
+        function cloneHierarchyState(source) {
+          const clone = Object.create(null);
+          Object.entries(source || {}).forEach(([roleId, roleEntry]) => {
+            const roleClone = {
+              includeAll: Boolean(roleEntry.includeAll),
+              lts: Object.create(null),
+            };
+            Object.entries(roleEntry.lts || {}).forEach(([ltId, ltEntry]) => {
+              roleClone.lts[ltId] = {
+                includeAll: Boolean(ltEntry.includeAll),
+                sts: Object.assign(Object.create(null), ltEntry.sts || {}),
+              };
+            });
+            clone[roleId] = roleClone;
+          });
+          return clone;
+        }
+
+        function normalizeHierarchyState(source) {
+          const normalized = cloneHierarchyState(source);
+          Object.entries(normalized).forEach(([roleId, roleEntry]) => {
+            if (roleEntry.includeAll) {
+              roleEntry.lts = Object.create(null);
+              return;
+            }
+            Object.entries(roleEntry.lts).forEach(([ltId, ltEntry]) => {
+              if (ltEntry.includeAll) {
+                ltEntry.sts = Object.create(null);
+                return;
+              }
+              Object.keys(ltEntry.sts).forEach((stId) => {
+                if (!ltEntry.sts[stId]) {
+                  delete ltEntry.sts[stId];
+                }
+              });
+              if (Object.keys(ltEntry.sts).length === 0) {
+                delete roleEntry.lts[ltId];
+              }
+            });
+            if (Object.keys(roleEntry.lts).length === 0) {
+              delete normalized[roleId];
+            }
+          });
+          return normalized;
+        }
+
+        function hierarchyFilterIsEmpty(hierarchy) {
+          return !hierarchy || Object.keys(hierarchy).length === 0;
+        }
+
+        function hierarchyShallowEqual(a, b) {
+          if (a === b) return true;
+          const aRoleIds = Object.keys(a || {});
+          const bRoleIds = Object.keys(b || {});
+          if (aRoleIds.length !== bRoleIds.length) return false;
+          for (const roleId of aRoleIds) {
+            if (!Object.prototype.hasOwnProperty.call(b, roleId)) {
+              return false;
+            }
+            const aRole = a[roleId];
+            const bRole = b[roleId];
+            if (!aRole || !bRole) return false;
+            if (aRole.includeAll !== bRole.includeAll) return false;
+            const aLtIds = Object.keys(aRole.lts || {});
+            const bLtIds = Object.keys(bRole.lts || {});
+            if (aLtIds.length !== bLtIds.length) return false;
+            for (const ltId of aLtIds) {
+              if (
+                !Object.prototype.hasOwnProperty.call(bRole.lts || {}, ltId)
+              ) {
+                return false;
+              }
+              const aLt = aRole.lts[ltId];
+              const bLt = bRole.lts[ltId];
+              if (!aLt || !bLt) return false;
+              if (aLt.includeAll !== bLt.includeAll) return false;
+              const aStIds = Object.keys(aLt.sts || {});
+              const bStIds = Object.keys(bLt.sts || {});
+              if (aStIds.length !== bStIds.length) return false;
+              for (const stId of aStIds) {
+                if (
+                  !Object.prototype.hasOwnProperty.call(bLt.sts || {}, stId)
+                ) {
+                  return false;
+                }
+              }
+            }
+          }
+          return true;
+        }
+
+        function reconcileHierarchyFilterWithData() {
+          const roles = AppState.data.roles || [];
+          const rolesIndex = new Map(roles.map((role) => [role.id, role]));
+          const working = cloneHierarchyState(TaskFilters.hierarchy);
+          Object.keys(working).forEach((roleId) => {
+            const role = rolesIndex.get(roleId);
+            if (!role) {
+              delete working[roleId];
+              return;
+            }
+            const roleEntry = working[roleId];
+            if (roleEntry.includeAll) {
+              return;
+            }
+            const ltIndex = new Map(
+              (role.lt_goals || []).map((lt) => [lt.id, lt])
+            );
+            Object.keys(roleEntry.lts).forEach((ltId) => {
+              const lt = ltIndex.get(ltId);
+              if (!lt) {
+                delete roleEntry.lts[ltId];
+                return;
+              }
+              const ltEntry = roleEntry.lts[ltId];
+              if (ltEntry.includeAll) {
+                return;
+              }
+              const stIndex = new Set(
+                (lt.st_goals || []).map((st) => st.id)
+              );
+              Object.keys(ltEntry.sts).forEach((stId) => {
+                if (!stIndex.has(stId)) {
+                  delete ltEntry.sts[stId];
+                }
+              });
+            });
+          });
+          const normalized = normalizeHierarchyState(working);
+          if (!hierarchyShallowEqual(TaskFilters.hierarchy, normalized)) {
+            TaskFilters.hierarchy = normalized;
+          }
+        }
+
+        const TaskFilters = {
+          importanceMin: null,
+          importanceMax: null,
+          dueFrom: null,
+          dueTo: null,
+          state: "all",
+          search: "",
+          hierarchy: createHierarchyState(),
+        };
+        let taskSearchDraft = TaskFilters.search;
+
+        function getAllTaskRefs() {
+          const refs = [];
+          AppState.data.roles.forEach((role) =>
+            role.lt_goals.forEach((lt) =>
+              lt.st_goals.forEach((st) =>
+                st.tasks.forEach((task) => refs.push({ role, lt, st, task }))
+              )
+            )
+          );
+          return refs;
+        }
+
+        function getFilteredTaskRefs() {
+          reconcileHierarchyFilterWithData();
+          return getAllTaskRefs().filter(taskMatchesFilters);
+        }
+
+        function taskMatchesFilters(ref) {
+          const {
+            importanceMin,
+            importanceMax,
+            dueFrom,
+            dueTo,
+            state,
+            search,
+            hierarchy,
+          } = TaskFilters;
+
+          if (!hierarchyFilterIsEmpty(hierarchy)) {
+            if (!taskMatchesHierarchyFilter(ref, hierarchy)) {
+              return false;
+            }
+          }
+          const taskImportance =
+            ref.task.importance != null
+              ? toImportance(ref.task.importance, 1)
+              : null;
+
+          if (importanceMin != null) {
+            if (taskImportance == null || taskImportance < importanceMin) {
+              return false;
+            }
+          }
+
+          if (importanceMax != null) {
+            if (taskImportance == null || taskImportance > importanceMax) {
+              return false;
+            }
+          }
+
+          const taskState = ref.task.state || DEFAULT_TASK_STATE;
+          if (state !== "all" && taskState !== state) {
+            return false;
+          }
+
+          const dueTimestamp = parseDateToTimestamp(ref.task.due);
+          const fromTimestamp = parseDateToTimestamp(dueFrom);
+          if (fromTimestamp != null) {
+            if (dueTimestamp == null || dueTimestamp < fromTimestamp) {
+              return false;
+            }
+          }
+
+          const toTimestamp = parseDateToTimestamp(dueTo);
+          if (toTimestamp != null) {
+            if (dueTimestamp == null || dueTimestamp > toTimestamp) {
+              return false;
+            }
+          }
+
+          const query = normalizeForComparison(search);
+          if (query) {
+            const haystack = normalizeForComparison(
+              `${ref.task.title || ""} ${ref.task.description || ""}`
+            );
+            if (!haystack.includes(query)) {
+              return false;
+            }
+          }
+
+          return true;
+        }
+
+        function taskMatchesHierarchyFilter(ref, hierarchy) {
+          const roleEntry = hierarchy?.[ref.role.id];
+          if (!roleEntry) return false;
+          if (roleEntry.includeAll) return true;
+          const ltEntry = roleEntry.lts?.[ref.lt.id];
+          if (!ltEntry) return false;
+          if (ltEntry.includeAll) return true;
+          return Boolean(ltEntry.sts?.[ref.st.id]);
+        }
+
+        function parseDateToTimestamp(value) {
+          if (!value) return null;
+          const parsed = Date.parse(`${value}T00:00:00Z`);
+          return Number.isNaN(parsed) ? null : parsed;
+        }
+
+        function updateTaskFilters(patch) {
+          let changed = false;
+          Object.entries(patch).forEach(([key, value]) => {
+            if (TaskFilters[key] !== value) {
+              TaskFilters[key] = value;
+              changed = true;
+            }
+          });
+          if (!changed) return;
+          if (Object.prototype.hasOwnProperty.call(patch, "search")) {
+            taskSearchDraft = TaskFilters.search;
+          }
+          rerenderTaskView();
+        }
+
+        function rerenderTaskView() {
+          if (activeTab === "tasks") {
+            renderTasks();
+          } else if (activeTab === "dash") {
+            renderDashboard();
+          }
+        }
+
+        function createTaskFiltersBar({ onExport, onImport }) {
+          const container = document.createElement("div");
+          container.className = "controls filters";
+
+          reconcileHierarchyFilterWithData();
+
+          const importanceMinInput = document.createElement("input");
+          importanceMinInput.type = "number";
+          importanceMinInput.min = "1";
+          importanceMinInput.placeholder = "≥";
+          importanceMinInput.value =
+            TaskFilters.importanceMin != null ? TaskFilters.importanceMin : "";
+          importanceMinInput.addEventListener("change", () => {
+            const value = importanceMinInput.value.trim();
+            updateTaskFilters({
+              importanceMin: value === "" ? null : toImportance(value, 1),
+            });
+          });
+
+          const importanceMaxInput = document.createElement("input");
+          importanceMaxInput.type = "number";
+          importanceMaxInput.min = "1";
+          importanceMaxInput.placeholder = "≤";
+          importanceMaxInput.value =
+            TaskFilters.importanceMax != null ? TaskFilters.importanceMax : "";
+          importanceMaxInput.addEventListener("change", () => {
+            const value = importanceMaxInput.value.trim();
+            updateTaskFilters({
+              importanceMax: value === "" ? null : toImportance(value, 1),
+            });
+          });
+
+          const stateSelect = document.createElement("select");
+          const stateOptions = [
+            { value: "all", label: "Tutti" },
+            ...TASK_STATES.map((state) => ({
+              value: state.id,
+              label: state.label,
+            })),
+          ];
+          stateOptions.forEach((option) => {
+            const el = document.createElement("option");
+            el.value = option.value;
+            el.textContent = option.label;
+            stateSelect.appendChild(el);
+          });
+          stateSelect.value = TaskFilters.state;
+          stateSelect.addEventListener("change", () =>
+            updateTaskFilters({ state: stateSelect.value })
+          );
+
+          const dueFromInput = document.createElement("input");
+          dueFromInput.type = "date";
+          dueFromInput.value = TaskFilters.dueFrom || "";
+          dueFromInput.addEventListener("change", () =>
+            updateTaskFilters({ dueFrom: dueFromInput.value || null })
+          );
+          dueFromInput.addEventListener("input", () =>
+            updateTaskFilters({ dueFrom: dueFromInput.value || null })
+          );
+
+          const dueToInput = document.createElement("input");
+          dueToInput.type = "date";
+          dueToInput.value = TaskFilters.dueTo || "";
+          dueToInput.addEventListener("change", () =>
+            updateTaskFilters({ dueTo: dueToInput.value || null })
+          );
+          dueToInput.addEventListener("input", () =>
+            updateTaskFilters({ dueTo: dueToInput.value || null })
+          );
+
+          const searchInput = document.createElement("input");
+          searchInput.type = "text";
+          searchInput.placeholder = "Cerca titolo o descrizione…";
+          searchInput.value = taskSearchDraft || "";
+          searchInput.addEventListener("input", () => {
+            taskSearchDraft = searchInput.value;
+          });
+          searchInput.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+              updateTaskFilters({ search: taskSearchDraft });
+            }
+          });
+
+          const hierarchyControl = createHierarchyFilterControl();
+          const hierarchyField = createFilterField(
+            "Ruolo / LT / BT",
+            hierarchyControl
+          );
+          hierarchyField.classList.add("filter-tree");
+
+          container.append(
+            createFilterField("Importanza da", importanceMinInput),
+            createFilterField("Importanza a", importanceMaxInput),
+            createFilterField("Scadenza da", dueFromInput),
+            createFilterField("Scadenza a", dueToInput),
+            createFilterField("Stato", stateSelect),
+            hierarchyField,
+            createFilterField("Ricerca", searchInput),
+            button("Esporta CSV", "", () => onExport?.()),
+            button("Importa CSV", "", () => onImport?.())
+          );
+
+          return container;
+
+          function createHierarchyFilterControl() {
+            const wrapper = document.createElement("div");
+            wrapper.className = "hierarchy-filter";
+            (AppState.data.roles || []).forEach((role) => {
+              wrapper.appendChild(buildRoleNode(role));
+            });
+            if (!wrapper.children.length) {
+              const empty = document.createElement("div");
+              empty.className = "hierarchy-row is-empty";
+              const span = document.createElement("span");
+              span.textContent = "Nessun ruolo disponibile";
+              empty.appendChild(span);
+              wrapper.appendChild(empty);
+            }
+            return wrapper;
+          }
+
+          function buildRoleNode(role) {
+            const node = document.createElement("div");
+            node.className = "hierarchy-node";
+            const row = document.createElement("div");
+            row.className = "hierarchy-row";
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            const roleState = getRoleSelectionState(role.id);
+            checkbox.checked = roleState.checked;
+            checkbox.indeterminate = roleState.indeterminate;
+            checkbox.addEventListener("change", () => {
+              const next = cloneHierarchyState(TaskFilters.hierarchy);
+              if (checkbox.checked) {
+                next[role.id] = {
+                  includeAll: true,
+                  lts: Object.create(null),
+                };
+              } else {
+                delete next[role.id];
+              }
+              updateTaskFilters({ hierarchy: normalizeHierarchyState(next) });
+            });
+            row.appendChild(checkbox);
+            row.appendChild(createNodeLabel(role.title || "Ruolo senza titolo"));
+            row.addEventListener("click", (event) => {
+              if (event.target === checkbox) return;
+              if (event.target.closest(".hierarchy-row") !== row) return;
+              if (checkbox.disabled) return;
+              event.stopPropagation();
+              checkbox.click();
+            });
+            node.appendChild(row);
+
+            const ltGoals = role.lt_goals || [];
+            if (ltGoals.length) {
+              const children = document.createElement("div");
+              children.className = "hierarchy-children";
+              ltGoals.forEach((lt) => {
+                children.appendChild(buildLongTermNode(role, lt));
+              });
+              node.appendChild(children);
+            }
+
+            return node;
+          }
+
+          function buildLongTermNode(role, lt) {
+            const node = document.createElement("div");
+            node.className = "hierarchy-node";
+            const row = document.createElement("div");
+            row.className = "hierarchy-row";
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            const ltState = getLongTermSelectionState(role.id, lt.id);
+            checkbox.checked = ltState.checked;
+            checkbox.indeterminate = ltState.indeterminate;
+            checkbox.disabled = ltState.disabled;
+            if (!ltState.disabled) {
+              checkbox.addEventListener("change", () => {
+                const next = cloneHierarchyState(TaskFilters.hierarchy);
+                let roleEntry = next[role.id];
+                if (!roleEntry) {
+                  roleEntry = {
+                    includeAll: false,
+                    lts: Object.create(null),
+                  };
+                  next[role.id] = roleEntry;
+                }
+                if (roleEntry.includeAll) {
+                  roleEntry.includeAll = false;
+                  roleEntry.lts = Object.create(null);
+                }
+                if (checkbox.checked) {
+                  roleEntry.lts[lt.id] = {
+                    includeAll: true,
+                    sts: Object.create(null),
+                  };
+                } else {
+                  delete roleEntry.lts[lt.id];
+                }
+                updateTaskFilters({
+                  hierarchy: normalizeHierarchyState(next),
+                });
+              });
+            }
+            row.appendChild(checkbox);
+            row.appendChild(createNodeLabel(lt.title || "LT senza titolo"));
+            row.addEventListener("click", (event) => {
+              if (event.target === checkbox) return;
+              if (event.target.closest(".hierarchy-row") !== row) return;
+              if (checkbox.disabled) return;
+              event.stopPropagation();
+              checkbox.click();
+            });
+            node.appendChild(row);
+
+            const stGoals = lt.st_goals || [];
+            if (stGoals.length) {
+              const children = document.createElement("div");
+              children.className = "hierarchy-children";
+              stGoals.forEach((st) => {
+                children.appendChild(buildShortTermRow(role, lt, st));
+              });
+              node.appendChild(children);
+            }
+
+            return node;
+          }
+
+          function buildShortTermRow(role, lt, st) {
+            const row = document.createElement("div");
+            row.className = "hierarchy-row";
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            const stState = getShortTermSelectionState(role.id, lt.id, st.id);
+            checkbox.checked = stState.checked;
+            checkbox.disabled = stState.disabled;
+            if (!stState.disabled) {
+              checkbox.addEventListener("change", () => {
+                const next = cloneHierarchyState(TaskFilters.hierarchy);
+                let roleEntry = next[role.id];
+                if (!roleEntry) {
+                  roleEntry = {
+                    includeAll: false,
+                    lts: Object.create(null),
+                  };
+                  next[role.id] = roleEntry;
+                }
+                if (roleEntry.includeAll) {
+                  roleEntry.includeAll = false;
+                  roleEntry.lts = Object.create(null);
+                }
+                let ltEntry = roleEntry.lts[lt.id];
+                if (!ltEntry) {
+                  ltEntry = {
+                    includeAll: false,
+                    sts: Object.create(null),
+                  };
+                  roleEntry.lts[lt.id] = ltEntry;
+                }
+                if (ltEntry.includeAll) {
+                  ltEntry.includeAll = false;
+                  ltEntry.sts = Object.create(null);
+                }
+                if (checkbox.checked) {
+                  ltEntry.sts[st.id] = true;
+                } else {
+                  delete ltEntry.sts[st.id];
+                }
+                updateTaskFilters({
+                  hierarchy: normalizeHierarchyState(next),
+                });
+              });
+            }
+            row.appendChild(checkbox);
+            row.appendChild(createNodeLabel(st.title || "BT senza titolo"));
+            row.addEventListener("click", (event) => {
+              if (event.target === checkbox) return;
+              if (event.target.closest(".hierarchy-row") !== row) return;
+              if (checkbox.disabled) return;
+              event.stopPropagation();
+              checkbox.click();
+            });
+            return row;
+          }
+
+          function createNodeLabel(text) {
+            const label = document.createElement("span");
+            label.textContent = text;
+            return label;
+          }
+
+          function getRoleSelectionState(roleId) {
+            const entry = TaskFilters.hierarchy[roleId];
+            if (!entry) {
+              return { checked: false, indeterminate: false };
+            }
+            if (entry.includeAll) {
+              return { checked: true, indeterminate: false };
+            }
+            return {
+              checked: false,
+              indeterminate: Object.keys(entry.lts || {}).length > 0,
+            };
+          }
+
+          function getLongTermSelectionState(roleId, ltId) {
+            const roleEntry = TaskFilters.hierarchy[roleId];
+            if (!roleEntry) {
+              return { checked: false, indeterminate: false, disabled: false };
+            }
+            if (roleEntry.includeAll) {
+              return { checked: true, indeterminate: false, disabled: true };
+            }
+            const ltEntry = (roleEntry.lts || {})[ltId];
+            if (!ltEntry) {
+              return {
+                checked: false,
+                indeterminate: false,
+                disabled: false,
+              };
+            }
+            if (ltEntry.includeAll) {
+              return { checked: true, indeterminate: false, disabled: false };
+            }
+            return {
+              checked: false,
+              indeterminate: Object.keys(ltEntry.sts || {}).length > 0,
+              disabled: false,
+            };
+          }
+
+          function getShortTermSelectionState(roleId, ltId, stId) {
+            const roleEntry = TaskFilters.hierarchy[roleId];
+            if (!roleEntry) {
+              return { checked: false, disabled: false };
+            }
+            if (roleEntry.includeAll) {
+              return { checked: true, disabled: true };
+            }
+            const ltEntry = (roleEntry.lts || {})[ltId];
+            if (!ltEntry) {
+              return { checked: false, disabled: false };
+            }
+            if (ltEntry.includeAll) {
+              return { checked: true, disabled: true };
+            }
+            const sts = ltEntry.sts || {};
+            return {
+              checked: Boolean(sts[stId]),
+              disabled: false,
+            };
+          }
+        }
+
+        function createFilterField(label, control) {
+          const wrapper = document.createElement("label");
+          wrapper.className = "filter-field";
+          const span = document.createElement("span");
+          span.textContent = label;
+          wrapper.append(span, control);
+          return wrapper;
         }
 
         function selectRole(selectedId) {
@@ -1364,14 +2145,12 @@
         // =============================================================
         function renderTasks() {
           dom.view.innerHTML = "";
-          const rows = [];
-          AppState.data.roles.forEach((role) =>
-            role.lt_goals.forEach((lt) =>
-              lt.st_goals.forEach((st) =>
-                st.tasks.forEach((task) => rows.push({ role, lt, st, task }))
-              )
-            )
-          );
+          const rows = getFilteredTaskRefs();
+
+          const filtersBar = createTaskFiltersBar({
+            onExport: () => exportTasksToCsv(getFilteredTaskRefs()),
+            onImport: () => requestTaskCsvImport(),
+          });
 
           const table = makeTable(
             [
@@ -1595,7 +2374,7 @@
             })
           );
 
-          dom.view.append(toolbar, table);
+          dom.view.append(filtersBar, toolbar, table);
         }
 
         // =============================================================
@@ -1603,6 +2382,10 @@
         // =============================================================
         function renderDashboard() {
           dom.view.innerHTML = "";
+          const filtersBar = createTaskFiltersBar({
+            onExport: () => exportTasksToCsv(getFilteredTaskRefs()),
+            onImport: () => requestTaskCsvImport(),
+          });
           const kanban = document.createElement("div");
           kanban.className = "kanban";
 
@@ -1613,24 +2396,16 @@
             kanban.appendChild(column.element);
           });
 
-          AppState.data.roles.forEach((role) =>
-            role.lt_goals.forEach((lt) =>
-              lt.st_goals.forEach((st) =>
-                st.tasks.forEach((task) => {
-                  const stateId = getTaskStateId(task.state);
-                  const column = columns.get(stateId);
-                  if (!column) return;
-                  if (column.placeholder.isConnected) {
-                    column.body.removeChild(column.placeholder);
-                  }
-                  column.body.appendChild(
-                    createKanbanCard({ role, lt, st, task })
-                  );
-                  column.count += 1;
-                })
-              )
-            )
-          );
+          getFilteredTaskRefs().forEach(({ role, lt, st, task }) => {
+            const stateId = getTaskStateId(task.state);
+            const column = columns.get(stateId);
+            if (!column) return;
+            if (column.placeholder.isConnected) {
+              column.body.removeChild(column.placeholder);
+            }
+            column.body.appendChild(createKanbanCard({ role, lt, st, task }));
+            column.count += 1;
+          });
 
           columns.forEach((column) => {
             if (!column.count && !column.placeholder.isConnected) {
@@ -1639,7 +2414,7 @@
             column.countEl.textContent = String(column.count);
           });
 
-          dom.view.appendChild(kanban);
+          dom.view.append(filtersBar, kanban);
         }
 
         function createKanbanColumn(state) {
@@ -1825,6 +2600,248 @@
           };
           normalizeTask(task);
           return task;
+        }
+
+        // =============================================================
+        // Export / Import CSV attività
+        // =============================================================
+        function exportTasksToCsv(taskRefs) {
+          const lines = [TASK_CSV_HEADERS.join(",")];
+          taskRefs.forEach(({ role, lt, st, task }) => {
+            lines.push(
+              [
+                role.title || "",
+                lt.title || "",
+                st.title || "",
+                task.title || "",
+                task.description || "",
+                task.importance ?? "",
+                task.due || "",
+                getTaskStateId(task.state),
+              ]
+                .map(escapeCsvValue)
+                .join(",")
+            );
+          });
+
+          const blob = new Blob([lines.join("\r\n")], {
+            type: "text/csv;charset=utf-8;",
+          });
+          const link = document.createElement("a");
+          link.href = URL.createObjectURL(blob);
+          link.download = TASK_CSV_FILE_NAME;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          URL.revokeObjectURL(link.href);
+        }
+
+        function escapeCsvValue(value) {
+          if (value == null) return "";
+          const text = String(value);
+          if (/[",\n\r]/.test(text)) {
+            return `"${text.replace(/"/g, '""')}"`;
+          }
+          return text;
+        }
+
+        function importTasksFromCsvContent(content) {
+          const rows = parseCsv(content);
+          if (!rows.length) {
+            throw new Error("CSV vuoto");
+          }
+
+          const headerRow = rows[0];
+          const indexMap = buildCsvIndexMap(headerRow);
+          const missingColumns = Object.keys(TASK_CSV_COLUMN_LABELS).filter(
+            (key) => indexMap[key] === -1
+          );
+          if (missingColumns.length) {
+            const labels = missingColumns
+              .map((key) => TASK_CSV_COLUMN_LABELS[key])
+              .join(", ");
+            throw new Error(`Colonne mancanti nel CSV: ${labels}`);
+          }
+
+          let imported = 0;
+          const touchedRoles = new Set();
+
+          for (let i = 1; i < rows.length; i += 1) {
+            const row = rows[i];
+            if (!row || !row.length) continue;
+            const normalizedRow = headerRow.map((_, idx) => row[idx] ?? "");
+            if (normalizedRow.every((value) => !value.trim())) continue;
+
+            const roleTitle = normalizedRow[indexMap.role];
+            const ltTitle = normalizedRow[indexMap.lt];
+            const stTitle = normalizedRow[indexMap.st];
+            const title = normalizedRow[indexMap.title] || "Attività importata";
+            const description = normalizedRow[indexMap.description] || "";
+            const rawImportance = normalizedRow[indexMap.importance].trim();
+            let importance = null;
+            if (rawImportance) {
+              const parsedImportance = Number.parseInt(rawImportance, 10);
+              if (!Number.isNaN(parsedImportance)) {
+                importance = parsedImportance;
+              }
+            }
+            const due = sanitizeCsvDate(normalizedRow[indexMap.due]);
+            const state = resolveTaskStateFromCsv(normalizedRow[indexMap.state]);
+
+            const role = ensureRoleForImport(roleTitle);
+            const lt = ensureLongTermForImport(role, ltTitle, due);
+            const st = ensureShortTermForImport(lt, stTitle, due);
+
+            const task = createTask(title, description, importance, due);
+            task.state = state;
+            normalizeTask(task);
+            clampChildToParent(task, st.due ? st : lt);
+            st.tasks.push(task);
+            imported += 1;
+            touchedRoles.add(role);
+          }
+
+          touchedRoles.forEach((role) => cascadeFromRole(role));
+          if (!imported) {
+            throw new Error("Nessuna attività trovata nel CSV");
+          }
+          return imported;
+        }
+
+        function buildCsvIndexMap(headerRow) {
+          const normalized = headerRow.map(normalizeForComparison);
+          const map = {};
+          Object.entries(TASK_CSV_COLUMN_ALIASES).forEach(([key, aliases]) => {
+            map[key] = normalized.findIndex((value) =>
+              aliases.some((alias) => normalizeForComparison(alias) === value)
+            );
+          });
+          return map;
+        }
+
+        function parseCsv(content) {
+          const rows = [];
+          let current = [];
+          let currentValue = "";
+          let inQuotes = false;
+
+          for (let i = 0; i < content.length; i += 1) {
+            const char = content[i];
+            if (inQuotes) {
+              if (char === '"') {
+                if (content[i + 1] === '"') {
+                  currentValue += '"';
+                  i += 1;
+                } else {
+                  inQuotes = false;
+                }
+              } else {
+                currentValue += char;
+              }
+              continue;
+            }
+
+            if (char === '"') {
+              inQuotes = true;
+            } else if (char === ',') {
+              current.push(currentValue);
+              currentValue = "";
+            } else if (char === '\r') {
+              // ignore
+            } else if (char === '\n') {
+              current.push(currentValue);
+              rows.push(current);
+              current = [];
+              currentValue = "";
+            } else {
+              currentValue += char;
+            }
+          }
+
+          current.push(currentValue);
+          if (current.length > 1 || current[0] !== "") {
+            rows.push(current);
+          }
+          return rows;
+        }
+
+        function normalizeForComparison(value) {
+          return value
+            ? value
+                .toString()
+                .trim()
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/\p{Diacritic}/gu, "")
+            : "";
+        }
+
+        function resolveTaskStateFromCsv(value) {
+          const normalized = normalizeForComparison(value);
+          if (!normalized) return DEFAULT_TASK_STATE;
+          for (const state of TASK_STATES) {
+            if (normalizeForComparison(state.id) === normalized) {
+              return state.id;
+            }
+            if (normalizeForComparison(state.label) === normalized) {
+              return state.id;
+            }
+          }
+          return DEFAULT_TASK_STATE;
+        }
+
+        function sanitizeCsvDate(value) {
+          const trimmed = (value || "").trim();
+          if (!trimmed) return null;
+          if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+          return null;
+        }
+
+        function ensureRoleForImport(title) {
+          const finalTitle = title && title.trim() ? title.trim() : "Ruolo importato";
+          const normalizedTitle = normalizeForComparison(finalTitle);
+          let role = AppState.data.roles.find(
+            (candidate) => normalizeForComparison(candidate.title) === normalizedTitle
+          );
+          if (!role) {
+            role = createRole(finalTitle, 3);
+            AppState.data.roles.push(role);
+          }
+          return role;
+        }
+
+        function ensureLongTermForImport(role, title, dueHint) {
+          const finalTitle = title && title.trim()
+            ? title.trim()
+            : "Obiettivo LT importato";
+          const normalizedTitle = normalizeForComparison(finalTitle);
+          let lt = role.lt_goals.find(
+            (candidate) => normalizeForComparison(candidate.title) === normalizedTitle
+          );
+          if (!lt) {
+            const due = sanitizeCsvDate(dueHint) || DateUtils.addDays(365);
+            lt = createLongTerm(finalTitle, "", role.importance, due);
+            clampChildToParent(lt, role);
+            role.lt_goals.push(lt);
+          }
+          return lt;
+        }
+
+        function ensureShortTermForImport(lt, title, dueHint) {
+          const finalTitle = title && title.trim()
+            ? title.trim()
+            : "Obiettivo BT importato";
+          const normalizedTitle = normalizeForComparison(finalTitle);
+          let st = lt.st_goals.find(
+            (candidate) => normalizeForComparison(candidate.title) === normalizedTitle
+          );
+          if (!st) {
+            const due = sanitizeCsvDate(dueHint) || null;
+            st = createShortTerm(finalTitle, "", null, due);
+            clampChildToParent(st, lt);
+            lt.st_goals.push(st);
+          }
+          return st;
         }
 
         // =============================================================

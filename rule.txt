@@ -3,24 +3,23 @@ Il codice sorgente di questo progetto deve continuare ad essere serverless (cio�
 Meglio se riesci a lasciare tutto su un file unico html, ma ben organizato al suo interno.
 
 Partiamo dal DOMINIO, ovvero il nostro JSON.
-Ci sarà un oggetto "Ruoli" che può contenere più ruoli. Ciascun Ruolo avrà un titolo, una importanza con un numero intero.
-Ciascun ruolo contiene degli "obiettivi a lungo termine" che avranno un titolo, una descrizione, una importanza (un intero) e una data di scadenza. Ciascun obiettivo a lungo termine può essere scomposto da "obiettivi a breve termine" anch'essi con titolo, descrizione e una importanza.
-Ciascun "obiettivo a breve termine" sarà composto da attività che avranno un titolo, una descrizione, una importanza, una data di scadenza e uno stato.
+La radice contiene la collezione di "Ruoli". Ogni Ruolo possiede un titolo e una importanza (intero ≥1) e racchiude gli "obiettivi a lungo termine" (LT).
+Ogni obiettivo LT ha titolo, descrizione, importanza obbligatoria e data di scadenza obbligatoria, e può essere scomposto in "obiettivi a breve termine" (ST) con titolo, descrizione, importanza opzionale e scadenza opzionale.
+Gli obiettivi ST racchiudono le attività. Ciascuna attività ha titolo, descrizione, importanza opzionale, scadenza opzionale e stato.
 Lo stato di una attività può assumere uno dei seguenti valori: "Da pensare meglio" (grigio), "Da fare" (azzurro), "In evoluzione" (giallo), "Paused" (arancione), "Fatto" (verde), "Rejected" (rosso).
-Quindi ricapitolando l'ordine gerarchico sarà:
-(Ruolo) > Obiettivo lungo termine > Obiettivo breve termine > attività
-Gli obiettivi a lungo termine hanno l'obbligo di avere importanze e data di scadenza. Gli altri, se non li hanno li ereditano, altrimenti possono essere customizzati però con i seguenti vincoli: 1. Non è possibile avere una data di scadenza superiore a quella dell'obiettivo padre; 2. Non è possibile avere una importanza maggiore dell'obiettivo padre.
+La gerarchia è quindi: Ruolo → Obiettivo lungo termine → Obiettivo breve termine → Attività.
+Gli obiettivi LT devono sempre avere importanza e scadenza. Gli elementi figli ereditano importanza e scadenza quando non sono valorizzati, e possono personalizzarli solo rispettando i vincoli: nessuna scadenza oltre il genitore e nessuna importanza superiore a quella del genitore.
 
 
 Adesso passiamo alle VISTE che desideriamo avere.
-Premesso che restano sempre visibili i tasti di salvataggio in alto (com'è oggi) e l'indicatore se Google Drive è connesso, è necessario una revisione totale del resto.
+Premesso che restano sempre visibili i tasti di salvataggio in alto (com'è oggi) e l'indicatore se Google Drive è connesso, è necessaria una revisione totale del resto.
 Ci saranno i seguenti TAB, ciascuno mostrerà una sotto-vista differente:
-- Ruoli: permette di impostare i ruoli
-- Obiettivi a lungo termine: permette di definire, modificare o eliminare gli obiettivi (operazioni di modifica o eliminazione devono controllare che gli oggetti figli siano coerenti: in caso di eliminazione ci vuole un alert prima e poi la cancellazione anche dei figli; in caso di modifica dell'importanza e della scadenza: vanno presi anche tutti i figli e se la loro scadenza o importanza eccede, vanno riportati al nuovo valore massimo)
-- Obiettivi a breve termine: come sopra, i controlli in questo caso si faranno solo sulle attività sottostanti
-- Attività: pannello dove si può agire sulle attività, anche modificando lo stato tramite un menù a tendina per applicare rapidamente uno dei valori possibili
+- Ruoli: permette di impostare i ruoli.
+- Obiettivi a lungo termine: permette di definire, modificare o eliminare gli obiettivi (operazioni di modifica o eliminazione devono controllare che gli oggetti figli siano coerenti: in caso di eliminazione ci vuole un alert prima e poi la cancellazione anche dei figli; in caso di modifica dell'importanza e della scadenza: vanno presi anche tutti i figli e se la loro scadenza o importanza eccede, vanno riportati al nuovo valore massimo).
+- Obiettivi a breve termine: come sopra, i controlli in questo caso si faranno solo sulle attività sottostanti.
+- Attività: pannello dove si può agire sulle attività, modificando anche lo stato tramite un menù a tendina. La vista espone un blocco filtri condiviso con la Dashboard (intervallo di importanza con estremi aperti, stato, intervallo di scadenza con estremi aperti, ricerca full text su titolo/descrizione e filtro gerarchico componibile per ruoli → LT → BT) e pulsanti per esportare in CSV tutte le attività visibili e per importare un CSV con la stessa struttura, associando i task ai genitori per nome e creando gli antenati mancanti.
 
 Tutti i tab descritti sopra organizzano i valori in tabelle che sono ordinabili per i vari campi.
 
 Altro TAB:
-- Dashboard: qui ci sarà la vista a Cards organizzata in una Kanban con colonne corrispondenti ai vari stati delle attività. Ogni card mostra in breve la gerarchia di provenienza, il titolo del task, i primi N caratteri della descrizione, l'importanza e la scadenza; trascinando una card in un'altra colonna si aggiorna lo stato dell'attività.
+- Dashboard: vista a card organizzata in una Kanban con colonne corrispondenti ai vari stati delle attività. Ogni card mostra in breve la gerarchia di provenienza, il titolo del task, i primi N caratteri della descrizione, l'importanza e la scadenza; trascinando una card in un'altra colonna si aggiorna lo stato dell'attività. Anche qui sono presenti lo stesso blocco filtri della vista Attività (incluso il filtro gerarchico ruoli → LT → BT) e i comandi di import/export CSV delle attività correnti.
