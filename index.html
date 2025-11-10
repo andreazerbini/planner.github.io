@@ -216,9 +216,64 @@
         color: var(--muted);
       }
 
+      .filter-field.filter-tree {
+        min-width: 260px;
+        flex: 1 1 320px;
+      }
+
+      .filter-field.filter-tree .hierarchy-filter {
+        width: 100%;
+      }
+
       .filter-field input,
       .filter-field select {
         width: 100%;
+      }
+
+      .hierarchy-filter {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        max-height: 220px;
+        padding: 0.35rem 0.45rem;
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+        background: #0b1324;
+        overflow: auto;
+      }
+
+      .hierarchy-node {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+
+      .hierarchy-row {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        color: var(--text);
+        font-size: 0.78rem;
+      }
+
+      .hierarchy-row.is-empty {
+        color: var(--muted);
+        font-style: italic;
+      }
+
+      .hierarchy-row span {
+        flex: 1;
+      }
+
+      .hierarchy-children {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+        margin-left: 1.5rem;
+      }
+
+      .hierarchy-children .hierarchy-children {
+        margin-left: 1.25rem;
       }
 
       input[type="text"],
@@ -882,6 +937,144 @@
           state: "Stato",
         });
 
+        function createHierarchyState() {
+          return Object.create(null);
+        }
+
+        function cloneHierarchyState(source) {
+          const clone = Object.create(null);
+          Object.entries(source || {}).forEach(([roleId, roleEntry]) => {
+            const roleClone = {
+              includeAll: Boolean(roleEntry.includeAll),
+              lts: Object.create(null),
+            };
+            Object.entries(roleEntry.lts || {}).forEach(([ltId, ltEntry]) => {
+              roleClone.lts[ltId] = {
+                includeAll: Boolean(ltEntry.includeAll),
+                sts: Object.assign(Object.create(null), ltEntry.sts || {}),
+              };
+            });
+            clone[roleId] = roleClone;
+          });
+          return clone;
+        }
+
+        function normalizeHierarchyState(source) {
+          const normalized = cloneHierarchyState(source);
+          Object.entries(normalized).forEach(([roleId, roleEntry]) => {
+            if (roleEntry.includeAll) {
+              roleEntry.lts = Object.create(null);
+              return;
+            }
+            Object.entries(roleEntry.lts).forEach(([ltId, ltEntry]) => {
+              if (ltEntry.includeAll) {
+                ltEntry.sts = Object.create(null);
+                return;
+              }
+              Object.keys(ltEntry.sts).forEach((stId) => {
+                if (!ltEntry.sts[stId]) {
+                  delete ltEntry.sts[stId];
+                }
+              });
+              if (Object.keys(ltEntry.sts).length === 0) {
+                delete roleEntry.lts[ltId];
+              }
+            });
+            if (Object.keys(roleEntry.lts).length === 0) {
+              delete normalized[roleId];
+            }
+          });
+          return normalized;
+        }
+
+        function hierarchyFilterIsEmpty(hierarchy) {
+          return !hierarchy || Object.keys(hierarchy).length === 0;
+        }
+
+        function hierarchyShallowEqual(a, b) {
+          if (a === b) return true;
+          const aRoleIds = Object.keys(a || {});
+          const bRoleIds = Object.keys(b || {});
+          if (aRoleIds.length !== bRoleIds.length) return false;
+          for (const roleId of aRoleIds) {
+            if (!Object.prototype.hasOwnProperty.call(b, roleId)) {
+              return false;
+            }
+            const aRole = a[roleId];
+            const bRole = b[roleId];
+            if (!aRole || !bRole) return false;
+            if (aRole.includeAll !== bRole.includeAll) return false;
+            const aLtIds = Object.keys(aRole.lts || {});
+            const bLtIds = Object.keys(bRole.lts || {});
+            if (aLtIds.length !== bLtIds.length) return false;
+            for (const ltId of aLtIds) {
+              if (
+                !Object.prototype.hasOwnProperty.call(bRole.lts || {}, ltId)
+              ) {
+                return false;
+              }
+              const aLt = aRole.lts[ltId];
+              const bLt = bRole.lts[ltId];
+              if (!aLt || !bLt) return false;
+              if (aLt.includeAll !== bLt.includeAll) return false;
+              const aStIds = Object.keys(aLt.sts || {});
+              const bStIds = Object.keys(bLt.sts || {});
+              if (aStIds.length !== bStIds.length) return false;
+              for (const stId of aStIds) {
+                if (
+                  !Object.prototype.hasOwnProperty.call(bLt.sts || {}, stId)
+                ) {
+                  return false;
+                }
+              }
+            }
+          }
+          return true;
+        }
+
+        function reconcileHierarchyFilterWithData() {
+          const roles = AppState.data.roles || [];
+          const rolesIndex = new Map(roles.map((role) => [role.id, role]));
+          const working = cloneHierarchyState(TaskFilters.hierarchy);
+          Object.keys(working).forEach((roleId) => {
+            const role = rolesIndex.get(roleId);
+            if (!role) {
+              delete working[roleId];
+              return;
+            }
+            const roleEntry = working[roleId];
+            if (roleEntry.includeAll) {
+              return;
+            }
+            const ltIndex = new Map(
+              (role.lt_goals || []).map((lt) => [lt.id, lt])
+            );
+            Object.keys(roleEntry.lts).forEach((ltId) => {
+              const lt = ltIndex.get(ltId);
+              if (!lt) {
+                delete roleEntry.lts[ltId];
+                return;
+              }
+              const ltEntry = roleEntry.lts[ltId];
+              if (ltEntry.includeAll) {
+                return;
+              }
+              const stIndex = new Set(
+                (lt.st_goals || []).map((st) => st.id)
+              );
+              Object.keys(ltEntry.sts).forEach((stId) => {
+                if (!stIndex.has(stId)) {
+                  delete ltEntry.sts[stId];
+                }
+              });
+            });
+          });
+          const normalized = normalizeHierarchyState(working);
+          if (!hierarchyShallowEqual(TaskFilters.hierarchy, normalized)) {
+            TaskFilters.hierarchy = normalized;
+          }
+        }
+
         const TaskFilters = {
           importanceMin: null,
           importanceMax: null,
@@ -889,6 +1082,7 @@
           dueTo: null,
           state: "all",
           search: "",
+          hierarchy: createHierarchyState(),
         };
         let taskSearchDraft = TaskFilters.search;
 
@@ -905,6 +1099,7 @@
         }
 
         function getFilteredTaskRefs() {
+          reconcileHierarchyFilterWithData();
           return getAllTaskRefs().filter(taskMatchesFilters);
         }
 
@@ -916,7 +1111,14 @@
             dueTo,
             state,
             search,
+            hierarchy,
           } = TaskFilters;
+
+          if (!hierarchyFilterIsEmpty(hierarchy)) {
+            if (!taskMatchesHierarchyFilter(ref, hierarchy)) {
+              return false;
+            }
+          }
           const taskImportance =
             ref.task.importance != null
               ? toImportance(ref.task.importance, 1)
@@ -967,6 +1169,16 @@
           return true;
         }
 
+        function taskMatchesHierarchyFilter(ref, hierarchy) {
+          const roleEntry = hierarchy?.[ref.role.id];
+          if (!roleEntry) return false;
+          if (roleEntry.includeAll) return true;
+          const ltEntry = roleEntry.lts?.[ref.lt.id];
+          if (!ltEntry) return false;
+          if (ltEntry.includeAll) return true;
+          return Boolean(ltEntry.sts?.[ref.st.id]);
+        }
+
         function parseDateToTimestamp(value) {
           if (!value) return null;
           const parsed = Date.parse(`${value}T00:00:00Z`);
@@ -999,6 +1211,8 @@
         function createTaskFiltersBar({ onExport, onImport }) {
           const container = document.createElement("div");
           container.className = "controls filters";
+
+          reconcileHierarchyFilterWithData();
 
           const importanceMinInput = document.createElement("input");
           importanceMinInput.type = "number";
@@ -1078,18 +1292,277 @@
             }
           });
 
+          const hierarchyControl = createHierarchyFilterControl();
+          const hierarchyField = createFilterField(
+            "Ruolo / LT / BT",
+            hierarchyControl
+          );
+          hierarchyField.classList.add("filter-tree");
+
           container.append(
             createFilterField("Importanza da", importanceMinInput),
             createFilterField("Importanza a", importanceMaxInput),
             createFilterField("Scadenza da", dueFromInput),
             createFilterField("Scadenza a", dueToInput),
             createFilterField("Stato", stateSelect),
+            hierarchyField,
             createFilterField("Ricerca", searchInput),
             button("Esporta CSV", "", () => onExport?.()),
             button("Importa CSV", "", () => onImport?.())
           );
 
           return container;
+
+          function createHierarchyFilterControl() {
+            const wrapper = document.createElement("div");
+            wrapper.className = "hierarchy-filter";
+            (AppState.data.roles || []).forEach((role) => {
+              wrapper.appendChild(buildRoleNode(role));
+            });
+            if (!wrapper.children.length) {
+              const empty = document.createElement("div");
+              empty.className = "hierarchy-row is-empty";
+              const span = document.createElement("span");
+              span.textContent = "Nessun ruolo disponibile";
+              empty.appendChild(span);
+              wrapper.appendChild(empty);
+            }
+            return wrapper;
+          }
+
+          function buildRoleNode(role) {
+            const node = document.createElement("div");
+            node.className = "hierarchy-node";
+            const row = document.createElement("div");
+            row.className = "hierarchy-row";
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            const roleState = getRoleSelectionState(role.id);
+            checkbox.checked = roleState.checked;
+            checkbox.indeterminate = roleState.indeterminate;
+            checkbox.addEventListener("change", () => {
+              const next = cloneHierarchyState(TaskFilters.hierarchy);
+              if (checkbox.checked) {
+                next[role.id] = {
+                  includeAll: true,
+                  lts: Object.create(null),
+                };
+              } else {
+                delete next[role.id];
+              }
+              updateTaskFilters({ hierarchy: normalizeHierarchyState(next) });
+            });
+            row.appendChild(checkbox);
+            row.appendChild(createNodeLabel(role.title || "Ruolo senza titolo"));
+            row.addEventListener("click", (event) => {
+              if (event.target === checkbox) return;
+              if (event.target.closest(".hierarchy-row") !== row) return;
+              if (checkbox.disabled) return;
+              event.stopPropagation();
+              checkbox.click();
+            });
+            node.appendChild(row);
+
+            const ltGoals = role.lt_goals || [];
+            if (ltGoals.length) {
+              const children = document.createElement("div");
+              children.className = "hierarchy-children";
+              ltGoals.forEach((lt) => {
+                children.appendChild(buildLongTermNode(role, lt));
+              });
+              node.appendChild(children);
+            }
+
+            return node;
+          }
+
+          function buildLongTermNode(role, lt) {
+            const node = document.createElement("div");
+            node.className = "hierarchy-node";
+            const row = document.createElement("div");
+            row.className = "hierarchy-row";
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            const ltState = getLongTermSelectionState(role.id, lt.id);
+            checkbox.checked = ltState.checked;
+            checkbox.indeterminate = ltState.indeterminate;
+            checkbox.disabled = ltState.disabled;
+            if (!ltState.disabled) {
+              checkbox.addEventListener("change", () => {
+                const next = cloneHierarchyState(TaskFilters.hierarchy);
+                let roleEntry = next[role.id];
+                if (!roleEntry) {
+                  roleEntry = {
+                    includeAll: false,
+                    lts: Object.create(null),
+                  };
+                  next[role.id] = roleEntry;
+                }
+                if (roleEntry.includeAll) {
+                  roleEntry.includeAll = false;
+                  roleEntry.lts = Object.create(null);
+                }
+                if (checkbox.checked) {
+                  roleEntry.lts[lt.id] = {
+                    includeAll: true,
+                    sts: Object.create(null),
+                  };
+                } else {
+                  delete roleEntry.lts[lt.id];
+                }
+                updateTaskFilters({
+                  hierarchy: normalizeHierarchyState(next),
+                });
+              });
+            }
+            row.appendChild(checkbox);
+            row.appendChild(createNodeLabel(lt.title || "LT senza titolo"));
+            row.addEventListener("click", (event) => {
+              if (event.target === checkbox) return;
+              if (event.target.closest(".hierarchy-row") !== row) return;
+              if (checkbox.disabled) return;
+              event.stopPropagation();
+              checkbox.click();
+            });
+            node.appendChild(row);
+
+            const stGoals = lt.st_goals || [];
+            if (stGoals.length) {
+              const children = document.createElement("div");
+              children.className = "hierarchy-children";
+              stGoals.forEach((st) => {
+                children.appendChild(buildShortTermRow(role, lt, st));
+              });
+              node.appendChild(children);
+            }
+
+            return node;
+          }
+
+          function buildShortTermRow(role, lt, st) {
+            const row = document.createElement("div");
+            row.className = "hierarchy-row";
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            const stState = getShortTermSelectionState(role.id, lt.id, st.id);
+            checkbox.checked = stState.checked;
+            checkbox.disabled = stState.disabled;
+            if (!stState.disabled) {
+              checkbox.addEventListener("change", () => {
+                const next = cloneHierarchyState(TaskFilters.hierarchy);
+                let roleEntry = next[role.id];
+                if (!roleEntry) {
+                  roleEntry = {
+                    includeAll: false,
+                    lts: Object.create(null),
+                  };
+                  next[role.id] = roleEntry;
+                }
+                if (roleEntry.includeAll) {
+                  roleEntry.includeAll = false;
+                  roleEntry.lts = Object.create(null);
+                }
+                let ltEntry = roleEntry.lts[lt.id];
+                if (!ltEntry) {
+                  ltEntry = {
+                    includeAll: false,
+                    sts: Object.create(null),
+                  };
+                  roleEntry.lts[lt.id] = ltEntry;
+                }
+                if (ltEntry.includeAll) {
+                  ltEntry.includeAll = false;
+                  ltEntry.sts = Object.create(null);
+                }
+                if (checkbox.checked) {
+                  ltEntry.sts[st.id] = true;
+                } else {
+                  delete ltEntry.sts[st.id];
+                }
+                updateTaskFilters({
+                  hierarchy: normalizeHierarchyState(next),
+                });
+              });
+            }
+            row.appendChild(checkbox);
+            row.appendChild(createNodeLabel(st.title || "BT senza titolo"));
+            row.addEventListener("click", (event) => {
+              if (event.target === checkbox) return;
+              if (event.target.closest(".hierarchy-row") !== row) return;
+              if (checkbox.disabled) return;
+              event.stopPropagation();
+              checkbox.click();
+            });
+            return row;
+          }
+
+          function createNodeLabel(text) {
+            const label = document.createElement("span");
+            label.textContent = text;
+            return label;
+          }
+
+          function getRoleSelectionState(roleId) {
+            const entry = TaskFilters.hierarchy[roleId];
+            if (!entry) {
+              return { checked: false, indeterminate: false };
+            }
+            if (entry.includeAll) {
+              return { checked: true, indeterminate: false };
+            }
+            return {
+              checked: false,
+              indeterminate: Object.keys(entry.lts || {}).length > 0,
+            };
+          }
+
+          function getLongTermSelectionState(roleId, ltId) {
+            const roleEntry = TaskFilters.hierarchy[roleId];
+            if (!roleEntry) {
+              return { checked: false, indeterminate: false, disabled: false };
+            }
+            if (roleEntry.includeAll) {
+              return { checked: true, indeterminate: false, disabled: true };
+            }
+            const ltEntry = (roleEntry.lts || {})[ltId];
+            if (!ltEntry) {
+              return {
+                checked: false,
+                indeterminate: false,
+                disabled: false,
+              };
+            }
+            if (ltEntry.includeAll) {
+              return { checked: true, indeterminate: false, disabled: false };
+            }
+            return {
+              checked: false,
+              indeterminate: Object.keys(ltEntry.sts || {}).length > 0,
+              disabled: false,
+            };
+          }
+
+          function getShortTermSelectionState(roleId, ltId, stId) {
+            const roleEntry = TaskFilters.hierarchy[roleId];
+            if (!roleEntry) {
+              return { checked: false, disabled: false };
+            }
+            if (roleEntry.includeAll) {
+              return { checked: true, disabled: true };
+            }
+            const ltEntry = (roleEntry.lts || {})[ltId];
+            if (!ltEntry) {
+              return { checked: false, disabled: false };
+            }
+            if (ltEntry.includeAll) {
+              return { checked: true, disabled: true };
+            }
+            const sts = ltEntry.sts || {};
+            return {
+              checked: Boolean(sts[stId]),
+              disabled: false,
+            };
+          }
         }
 
         function createFilterField(label, control) {
