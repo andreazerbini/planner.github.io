@@ -23,3 +23,10 @@ Tutti i tab descritti sopra organizzano i valori in tabelle che sono ordinabili 
 
 Altro TAB:
 - Dashboard: vista a card organizzata in una Kanban con colonne corrispondenti ai vari stati delle attività. Ogni card mostra in breve la gerarchia di provenienza, il titolo del task, i primi N caratteri della descrizione, l'importanza e la scadenza; trascinando una card in un'altra colonna si aggiorna lo stato dell'attività. Anche qui sono presenti lo stesso blocco filtri della vista Attività e i comandi di import/export CSV delle attività correnti.
+
+
+TODO:
+- Bugfix
+  - Importanza su "Task" non ha lo stesso controllo che c'è su LT e BT: per aggiornarsi devi cambiare tab ed è un bug. Deve comportarsi esattamente come i rispettivi campi di LT e BT: fare il check e limitarne il valore solo alla perdita di focus (blur)
+  - Ordinare le card sulla Dashboard per importanza (valori più ati stanno sempre in cima)
+  - Sella vista "Dashboard" compare il segnaposto "Nessuna attività. Trascina qui per cambiare stato." anche quando in realtà ci sono degli elementi da mostrare. Va quindi fixato così: tale segnaposto va inserito solo quando non ci sono task da mostrare per quella colonna. Tale segnaposto serve per far funzionare il drag&drop, ma in realtà deve essere sufficiente fare drag&drop di una card sull'intera colonna per spostare la card da uno stato all'altro.
