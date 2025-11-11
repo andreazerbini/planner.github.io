@@ -25,5 +25,6 @@ Altro TAB:
 - Dashboard: vista a card organizzata in una Kanban con colonne corrispondenti ai vari stati delle attività. Ogni card mostra in breve la gerarchia di provenienza, il titolo del task, i primi N caratteri della descrizione, l'importanza e la scadenza; trascinando una card in un'altra colonna si aggiorna lo stato dell'attività. Anche qui sono presenti lo stesso blocco filtri della vista Attività e i comandi di import/export CSV delle attività correnti.
 Aggiornamenti recenti:
 - Dominio / Attività: l'importanza dei task viene normalizzata al blur come già avviene per LT e BT, evitando salti di tab.
+- Dominio / Obiettivi BT: l'importanza non può superare quella del genitore neppure durante la digitazione o con gli spinner.
 - Vista Attività: il campo importanza sfrutta il commit on-blur con riallineamento ai vincoli del genitore.
-- Vista Dashboard: le card sono ordinate per importanza decrescente e il placeholder di drop appare solo con colonne vuote (il drop funziona sull'intera colonna).
+- Vista Dashboard: le card restano ordinate per importanza decrescente e il drop è attivo sull'intera colonna, non solo sui placeholder.

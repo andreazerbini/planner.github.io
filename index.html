@@ -1580,17 +1580,43 @@
                 label: "Importanza (ereditata se vuota)",
                 key: (row) =>
                   effectiveImportance(row.st, row.lt.importance ?? 1) || 0,
-                    render: (row) => {
-                        const el = inputInteger(row.st.importance, (value) => {
-                            row.st.importance = value;
-                        });
-                        el.addEventListener("blur", () => {
-                            clampChildToParent(row.st, row.lt);
-                            AppState.persist();
-                            render();
-                        });
-                        return el;
+                render: (row) => {
+                  const el = inputInteger(row.st.importance, (value) => {
+                    row.st.importance = value;
+                    enforceBounds();
+                  });
+
+                  const enforceBounds = () => {
+                    const parentImportance = effectiveImportance(
+                      row.lt,
+                      row.role.importance ?? 1
+                    );
+                    if (
+                      row.st.importance != null &&
+                      parentImportance != null &&
+                      row.st.importance > parentImportance
+                    ) {
+                      row.st.importance = parentImportance;
+                      el.value = String(parentImportance);
                     }
+                  };
+
+                  const commit = () => {
+                    clampChildToParent(row.st, row.lt);
+                    AppState.persist();
+                    render();
+                  };
+
+                  el.addEventListener("blur", commit);
+                  el.addEventListener("change", commit);
+                  el.addEventListener("keydown", (event) => {
+                    if (event.key === "Enter") el.blur();
+                  });
+
+                  enforceBounds();
+
+                  return el;
+                }
               },
               {
                 label: "Scadenza (ereditata se vuota)",
@@ -1996,7 +2022,7 @@
           placeholder.className = "kanban-column-placeholder";
           placeholder.textContent = "Nessuna attività. Trascina qui per cambiare stato.";
 
-          setupDropZone(column, body, state.id);
+          setupDropZone(column, [column, body, placeholder], state.id);
 
           column.append(header, body);
 
@@ -2009,26 +2035,30 @@
           };
         }
 
-        function setupDropZone(columnElement, dropTarget, stateId) {
-          dropTarget.addEventListener("dragenter", (event) => {
+        function setupDropZone(columnElement, dropTargets, stateId) {
+          const targets = Array.isArray(dropTargets)
+            ? dropTargets
+            : [dropTargets];
+
+          const handleDragEnter = (event) => {
             event.preventDefault();
             columnElement.classList.add("dragover");
-          });
+          };
 
-          dropTarget.addEventListener("dragover", (event) => {
+          const handleDragOver = (event) => {
             event.preventDefault();
             event.dataTransfer.dropEffect = "move";
             columnElement.classList.add("dragover");
-          });
+          };
 
-          dropTarget.addEventListener("dragleave", (event) => {
+          const handleDragLeave = (event) => {
             const destination = event.relatedTarget;
             if (!destination || !columnElement.contains(destination)) {
               columnElement.classList.remove("dragover");
             }
-          });
+          };
 
-          dropTarget.addEventListener("drop", (event) => {
+          const handleDrop = (event) => {
             event.preventDefault();
             columnElement.classList.remove("dragover");
             const payload = event.dataTransfer.getData("text/plain");
@@ -2049,6 +2079,13 @@
             normalizeTask(ref.task);
             AppState.persist();
             render();
+          };
+
+          targets.forEach((target) => {
+            target.addEventListener("dragenter", handleDragEnter);
+            target.addEventListener("dragover", handleDragOver);
+            target.addEventListener("dragleave", handleDragLeave);
+            target.addEventListener("drop", handleDrop);
           });
         }
 
