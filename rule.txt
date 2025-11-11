@@ -8,7 +8,7 @@ Ogni obiettivo LT ha titolo, descrizione, importanza obbligatoria e data di scad
 Gli obiettivi ST racchiudono le attività. Ciascuna attività ha titolo, descrizione, importanza opzionale, scadenza opzionale e stato.
 Lo stato di una attività può assumere uno dei seguenti valori: "Da pensare meglio" (grigio), "Da fare" (azzurro), "In evoluzione" (giallo), "Paused" (arancione), "Fatto" (verde), "Rejected" (rosso).
 La gerarchia è quindi: Ruolo → Obiettivo lungo termine → Obiettivo breve termine → Attività.
-Gli obiettivi LT devono sempre avere importanza e scadenza. Gli elementi figli ereditano importanza e scadenza quando non sono valorizzati, e possono personalizzarli solo rispettando i vincoli: nessuna scadenza oltre il genitore e nessuna importanza superiore a quella del genitore.
+Gli obiettivi LT devono sempre avere importanza e scadenza. Gli elementi figli ereditano importanza e scadenza quando non sono valorizzati, e possono personalizzarli solo rispettando i vincoli: nessuna scadenza oltre il genitore (e antenati) e nessuna importanza superiore a quella del genitore (e antenati).
 
 
 Adesso passiamo alle VISTE che desideriamo avere.
@@ -18,13 +18,19 @@ Ci saranno i seguenti TAB, ciascuno mostrerà una sotto-vista differente:
 - Obiettivi a lungo termine: permette di definire, modificare o eliminare gli obiettivi (operazioni di modifica o eliminazione devono controllare che gli oggetti figli siano coerenti: in caso di eliminazione ci vuole un alert prima e poi la cancellazione anche dei figli; in caso di modifica dell'importanza e della scadenza: vanno presi anche tutti i figli e se la loro scadenza o importanza eccede, vanno riportati al nuovo valore massimo).
 - Obiettivi a breve termine: come sopra, i controlli in questo caso si faranno solo sulle attività sottostanti.
 - Attività: pannello dove si può agire sulle attività, modificando anche lo stato tramite un menù a tendina. La vista espone un blocco filtri condiviso con la Dashboard (intervallo di importanza con estremi aperti, stato, intervallo di scadenza con estremi aperti e ricerca full text su titolo/descrizione) e pulsanti per esportare in CSV tutte le attività visibili e per importare un CSV con la stessa struttura, associando i task ai genitori per nome e creando gli antenati mancanti.
+- Dashboard: vista a card organizzata in una Kanban con colonne corrispondenti ai vari stati delle attività. Ogni card mostra in breve la gerarchia di provenienza, il titolo del task, i primi N caratteri della descrizione, l'importanza e la scadenza; trascinando una card in un'altra colonna si aggiorna lo stato dell'attività. Anche qui sono presenti lo stesso blocco filtri della vista Attività e i comandi di import/export CSV delle attività correnti.
+ - le card restano ordinate per importanza decrescente e il drop è attivo sull'intera colonna, non solo sui placeholder o sopra le cards
 
 Tutti i tab descritti sopra organizzano i valori in tabelle che sono ordinabili per i vari campi.
 
-Altro TAB:
-- Dashboard: vista a card organizzata in una Kanban con colonne corrispondenti ai vari stati delle attività. Ogni card mostra in breve la gerarchia di provenienza, il titolo del task, i primi N caratteri della descrizione, l'importanza e la scadenza; trascinando una card in un'altra colonna si aggiorna lo stato dell'attività. Anche qui sono presenti lo stesso blocco filtri della vista Attività e i comandi di import/export CSV delle attività correnti.
-Aggiornamenti recenti:
-- Dominio / Attività: l'importanza dei task viene normalizzata al blur come già avviene per LT e BT, evitando salti di tab.
-- Dominio / Obiettivi BT: l'importanza non può superare quella del genitore neppure durante la digitazione o con gli spinner.
-- Vista Attività: il campo importanza sfrutta il commit on-blur con riallineamento ai vincoli del genitore.
-- Vista Dashboard: le card restano ordinate per importanza decrescente e il drop è attivo sull'intera colonna, non solo sui placeholder.
+Altre considerazioni:
+- Dominio / Obiettivi / Attività: Quando si effettua una modifica (ad es. sull'importanza) i controlli e la normalizzazione (es. degli oggetti antenati) viene fatta possibilmente al blur. (Quindi ad es. l'importanza non può superare quella del genitore neppure durante la digitazione o con gli spinner.)
+
+TODO:
+- Mobile first
+- Aggiungere il "Mission" tab
+- Aggiungere al dominio le date di "effettiva chiusura" dei task e di "effettivo raggiungimento" degli obiettivi LT e BT
+ - tali date verranno richieste:
+   - per LT e BT: al click di una nuova azione "On goal" (il default sarà la data di oggi)
+   - per le activity verrà richiesto ogni volta che spostiamo un task in "Fatto" o "Rejected" (anche qui di default ci sarà la data corrente)
+- Archiviazione della settimana: da capire meglio come gestire la settimana e i task non raggiunti, oppure i task in backlog!
