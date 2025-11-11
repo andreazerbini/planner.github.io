@@ -1820,34 +1820,46 @@
                     row.task,
                     effectiveImportance(row.st, row.lt.importance)
                   ) || 0,
-                  render: (row) => {
-                      return inputInteger(row.task.importance, (value) => {
-                          row.task.importance = value;
-                          clampChildToParent(row.task, row.st.due ? row.st : row.lt);
-                          AppState.persist();
-                      });
-              }
+                render: (row) => {
+                  const el = inputInteger(row.task.importance, (value) => {
+                    row.task.importance = value;
+                  });
+                  const commit = () => {
+                    clampChildToParent(row.task, row.st.due ? row.st : row.lt);
+                    AppState.persist();
+                    render();
+                  };
+                  el.addEventListener("blur", commit);
+                  el.addEventListener("change", commit);
+                  el.addEventListener("keydown", (event) => {
+                    if (event.key === "Enter") el.blur();
+                  });
+                  return el;
+                },
               },
-                {
-                    label: "Scadenza (ereditata se vuota)",
-                    key: (row) =>
-                        effectiveDueDate(
-                            row.task,
-                            effectiveDueDate(row.st, row.lt.due)
-                        ) || "",
-                    render: (row) => {
-                        const el = inputDate(row.task.due, (value) => {
-                            row.task.due = value;
-                        }, { readOnly: false }); // ← Cambiato a false
-                        el.addEventListener("blur", () => {
-                            clampChildToParent(row.task, row.st.due ? row.st : row.lt);
-                            AppState.persist();
-                            render();
-                        });
-                        return el;
-                    }
-                }
-              ,
+              {
+                label: "Scadenza (ereditata se vuota)",
+                key: (row) =>
+                  effectiveDueDate(
+                    row.task,
+                    effectiveDueDate(row.st, row.lt.due)
+                  ) || "",
+                render: (row) => {
+                  const el = inputDate(
+                    row.task.due,
+                    (value) => {
+                      row.task.due = value;
+                    },
+                    { readOnly: false }
+                  ); // ← Cambiato a false
+                  el.addEventListener("blur", () => {
+                    clampChildToParent(row.task, row.st.due ? row.st : row.lt);
+                    AppState.persist();
+                    render();
+                  });
+                  return el;
+                },
+              },
               {
                 label: "Azioni",
                 render: (row) => {
@@ -1923,22 +1935,40 @@
             kanban.appendChild(column.element);
           });
 
-          getFilteredTaskRefs().forEach(({ role, lt, st, task }) => {
-            const stateId = getTaskStateId(task.state);
-            const column = columns.get(stateId);
-            if (!column) return;
-            if (column.placeholder.isConnected) {
-              column.body.removeChild(column.placeholder);
+          const refsByState = new Map();
+          getFilteredTaskRefs().forEach((ref) => {
+            const stateId = getTaskStateId(ref.task.state);
+            if (!refsByState.has(stateId)) {
+              refsByState.set(stateId, []);
             }
-            column.body.appendChild(createKanbanCard({ role, lt, st, task }));
-            column.count += 1;
+            refsByState.get(stateId).push(ref);
           });
 
-          columns.forEach((column) => {
-            if (!column.count && !column.placeholder.isConnected) {
+          columns.forEach((column, stateId) => {
+            column.body.innerHTML = "";
+            const refs = refsByState.get(stateId) || [];
+            refs.sort((a, b) => {
+              const impA = effectiveImportance(
+                a.task,
+                effectiveImportance(a.st, a.lt.importance)
+              ) ?? 0;
+              const impB = effectiveImportance(
+                b.task,
+                effectiveImportance(b.st, b.lt.importance)
+              ) ?? 0;
+              return impB - impA;
+            });
+
+            refs.forEach((ref) => {
+              column.body.appendChild(createKanbanCard(ref));
+            });
+
+            column.count = refs.length;
+            column.countEl.textContent = String(column.count);
+
+            if (!column.count) {
               column.body.appendChild(column.placeholder);
             }
-            column.countEl.textContent = String(column.count);
           });
 
           dom.view.append(filtersBar, kanban);
@@ -1965,7 +1995,6 @@
           const placeholder = document.createElement("p");
           placeholder.className = "kanban-column-placeholder";
           placeholder.textContent = "Nessuna attività. Trascina qui per cambiare stato.";
-          body.appendChild(placeholder);
 
           setupDropZone(column, body, state.id);
 
