@@ -424,7 +424,10 @@
           STATE: "covey_v2_domain_model",
           GD_CLIENT_ID: "covey_gd_client_id",
           GD_API_KEY: "covey_gd_api_key",
+          GD_FOLDER_ID: "covey_gd_folder_id",
         });
+
+        const DRIVE_FOLDER_NAME = "Kanban_Covey_BigRocks";
 
         const DEFAULT_FILE_NAME = "kanban-covey.json";
         const GOOGLE_DISCOVERY_DOCS = [
@@ -2564,6 +2567,8 @@
           gisLoaded: false,
           signedIn: false,
           currentFileId: null,
+          folderName: DRIVE_FOLDER_NAME,
+          folderId: localStorage.getItem(STORAGE_KEYS.GD_FOLDER_ID) || null,
         };
 
         function updateDriveUI() {
@@ -2577,6 +2582,15 @@
         function saveDriveCredentials() {
           localStorage.setItem(STORAGE_KEYS.GD_CLIENT_ID, GoogleDrive.CLIENT_ID);
           localStorage.setItem(STORAGE_KEYS.GD_API_KEY, GoogleDrive.API_KEY);
+        }
+
+        function persistDriveFolderId(id) {
+          GoogleDrive.folderId = id || null;
+          if (GoogleDrive.folderId) {
+            localStorage.setItem(STORAGE_KEYS.GD_FOLDER_ID, GoogleDrive.folderId);
+          } else {
+            localStorage.removeItem(STORAGE_KEYS.GD_FOLDER_ID);
+          }
         }
 
         function askForDriveCredentials() {
@@ -2679,6 +2693,85 @@
           return true;
         }
 
+        async function ensureDriveFolder() {
+          if (GoogleDrive.folderId) return GoogleDrive.folderId;
+          const folderName = GoogleDrive.folderName;
+          const query =
+            "mimeType='application/vnd.google-apps.folder' and trashed=false and name='" +
+            folderName +
+            "'";
+          const findWithGapi = async () => {
+            if (!(GoogleDrive.gapiLoaded && window.gapi?.client?.drive)) return null;
+            try {
+              const response = await gapi.client.drive.files.list({
+                q: query,
+                fields: "files(id,name)",
+                pageSize: 1,
+              });
+              return response.result.files?.[0] || null;
+            } catch (error) {
+              console.warn("Ricerca cartella via gapi fallita, provo fallback:", error);
+              return null;
+            }
+          };
+
+          const findWithRest = async () => {
+            try {
+              const response = await driveFetch("files", {
+                q: query,
+                fields: "files(id,name)",
+                pageSize: "1",
+              });
+              return response.files?.[0] || null;
+            } catch (error) {
+              console.warn("Ricerca cartella via REST fallita:", error);
+              return null;
+            }
+          };
+
+          const createWithGapi = async () => {
+            if (!(GoogleDrive.gapiLoaded && window.gapi?.client?.drive)) return null;
+            try {
+              const response = await gapi.client.drive.files.create({
+                resource: {
+                  name: folderName,
+                  mimeType: "application/vnd.google-apps.folder",
+                },
+                fields: "id",
+              });
+              return { id: response.result?.id };
+            } catch (error) {
+              console.warn("Creazione cartella via gapi fallita, provo REST:", error);
+              return null;
+            }
+          };
+
+          const createWithRest = async () => {
+            const response = await driveFetch(
+              "files",
+              { fields: "id" },
+              "POST",
+              {
+                name: folderName,
+                mimeType: "application/vnd.google-apps.folder",
+              }
+            );
+            return { id: response.id };
+          };
+
+          let folder = (await findWithGapi()) || (await findWithRest());
+          if (!folder) {
+            folder = (await createWithGapi()) || (await createWithRest());
+          }
+          if (!folder?.id) {
+            throw new Error(
+              "Impossibile accedere o creare la cartella Kanban_Covey_BigRocks su Drive"
+            );
+          }
+          persistDriveFolderId(folder.id);
+          return folder.id;
+        }
+
         async function driveFetch(path, params = {}, method = "GET", body = null) {
           const tokenObj = google.accounts.oauth2.getToken?.();
           const token = tokenObj && tokenObj.access_token;
@@ -2701,8 +2794,8 @@
           return response.json();
         }
 
-        async function listJsonFilesFallback() {
-          const q = "mimeType='application/json' and trashed=false";
+        async function listJsonFilesFallback(folderId) {
+          const q = `'${folderId}' in parents and mimeType='application/json' and trashed=false`;
           return driveFetch("files", {
             q,
             fields: "files(id,name,modifiedTime)",
@@ -2727,11 +2820,15 @@
           return response.text();
         }
 
-        async function uploadOrUpdateJsonFallback(name, content, fileId) {
+        async function uploadOrUpdateJsonFallback(name, content, fileId, folderId) {
           const boundary = "-------314159265358979323846";
           const delimiter = `\r\n--${boundary}\r\n`;
           const closeDelimiter = `\r\n--${boundary}--`;
-          const metadata = { name, mimeType: "application/json" };
+          const metadata = {
+            name,
+            mimeType: "application/json",
+            ...(fileId ? {} : { parents: [folderId] }),
+          };
           const multipartBody =
             `${delimiter}Content-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}` +
             `${delimiter}Content-Type: application/json\r\n\r\n${content}${closeDelimiter}`;
@@ -2770,11 +2867,12 @@
         dom.driveOpenBtn.addEventListener("click", async () => {
           try {
             if (!(await ensureDriveReady())) return;
+            const folderId = await ensureDriveFolder();
             let files = [];
             if (GoogleDrive.gapiLoaded && window.gapi?.client?.drive) {
               try {
                 const response = await gapi.client.drive.files.list({
-                  q: "mimeType='application/json' and trashed=false",
+                  q: `'${folderId}' in parents and mimeType='application/json' and trashed=false`,
                   pageSize: 25,
                   fields: "files(id,name,modifiedTime)",
                 });
@@ -2784,7 +2882,7 @@
               }
             }
             if (!files.length) {
-              const response = await listJsonFilesFallback();
+              const response = await listJsonFilesFallback(folderId);
               files = response.files || [];
             }
             if (!files.length) {
@@ -2835,6 +2933,7 @@
         dom.driveSaveBtn.addEventListener("click", async () => {
           try {
             if (!(await ensureDriveReady())) return;
+            const folderId = await ensureDriveFolder();
             const fileName = DEFAULT_FILE_NAME;
             const content = JSON.stringify(AppState.data, null, 2);
             if (GoogleDrive.gapiLoaded && window.gapi?.client?.drive) {
@@ -2842,7 +2941,11 @@
                 const boundary = "-------314159265358979323846";
                 const delimiter = `\r\n--${boundary}\r\n`;
                 const closeDelimiter = `\r\n--${boundary}--`;
-                const metadata = { name: fileName, mimeType: "application/json" };
+                const metadata = {
+                  name: fileName,
+                  mimeType: "application/json",
+                  ...(GoogleDrive.currentFileId ? {} : { parents: [folderId] }),
+                };
                 const multipartBody =
                   `${delimiter}Content-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}` +
                   `${delimiter}Content-Type: application/json\r\n\r\n${content}${closeDelimiter}`;
@@ -2881,7 +2984,8 @@
             GoogleDrive.currentFileId = await uploadOrUpdateJsonFallback(
               fileName,
               content,
-              GoogleDrive.currentFileId
+              GoogleDrive.currentFileId,
+              folderId
             );
             alert("Salvato su Drive (REST) ✅");
           } catch (error) {

@@ -2,6 +2,10 @@ Sei un esperto senior di Javascript vanilla.
 Il codice sorgente di questo progetto deve continuare ad essere serverless (cioè deve poter funzionare in modo statico senza un server che fa serve della pagina: ovvero doppio click su html e lavori sul browser; mentre per le funzioni GOOGLE-API sarà necessario al più avviare python server in locale) in modo tale che segua le best-practice di un codice sorgente ben scritto, facilissimo da comprendere e da leggere e ben commentato.
 Meglio se riesci a lasciare tutto su un file unico html, ma ben organizato al suo interno.
 
+Aggiornamenti svolti:
+- Il dominio e le viste descritte di seguito sono stati implementati e rappresentano lo stato attuale dell'applicazione.
+- L'integrazione Google Drive salva e apre esclusivamente dalla cartella "Kanban_Covey_BigRocks" (creata automaticamente se assente).
+
 Partiamo dal DOMINIO, ovvero il nostro JSON.
 La radice contiene la collezione di "Ruoli". Ogni Ruolo possiede un titolo e una importanza (intero ≥1) e racchiude gli "obiettivi a lungo termine" (LT).
 Ogni obiettivo LT ha titolo, descrizione, importanza obbligatoria e data di scadenza obbligatoria, e può essere scomposto in "obiettivi a breve termine" (ST) con titolo, descrizione, importanza opzionale e scadenza opzionale.
