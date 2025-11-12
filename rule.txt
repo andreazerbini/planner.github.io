@@ -7,11 +7,13 @@ Aggiornamenti svolti:
 - L'integrazione Google Drive salva e apre esclusivamente dalla cartella "Kanban_Covey_BigRocks" (creata automaticamente se assente).
 - Ogni salvataggio su Google Drive genera un nuovo file `kanban_covey_bigrocks_aaaaMMgg_hhmm_ss_ccc.json`, lasciando le versioni precedenti intatte.
 - Le viste "Attività" e "Dashboard" includono filtri aggiuntivi per Ruolo, obiettivi LT e BT.
+- Il dominio ora memorizza le date di raggiungimento effettivo (LT/BT) e di chiusura task, organizzando i BT in sprint con periodo e sprint corrente.
+- La vista "Obiettivi a breve termine" espone una striscia di sprint navigabile con comandi per selezionare lo sprint corrente e registrare le date di completamento.
 
 Partiamo dal DOMINIO, ovvero il nostro JSON.
-La radice contiene la collezione di "Ruoli". Ogni Ruolo possiede un titolo e una importanza (intero ≥1) e racchiude gli "obiettivi a lungo termine" (LT).
-Ogni obiettivo LT ha titolo, descrizione, importanza obbligatoria e data di scadenza obbligatoria, e può essere scomposto in "obiettivi a breve termine" (ST) con titolo, descrizione, importanza opzionale e scadenza opzionale.
-Gli obiettivi ST racchiudono le attività. Ciascuna attività ha titolo, descrizione, importanza opzionale, scadenza opzionale e stato.
+La radice contiene la collezione di "Ruoli" (con titolo e importanza) e, accanto a questi, la collezione di "Sprint" con id, nome, date di inizio/fine e l'elenco dei BT associati, oltre al riferimento `currentSprintId` che indica lo sprint attivo.
+Ogni obiettivo LT ha titolo, descrizione, importanza e scadenza obbligatorie e memorizza la data di raggiungimento effettivo (`achieved_on`). Può essere scomposto in "obiettivi a breve termine" (ST) con titolo, descrizione, importanza opzionale, scadenza opzionale e la propria `achieved_on`.
+Gli obiettivi ST racchiudono le attività e sono collegati a uno sprint tramite `sprint_id`. Ciascuna attività ha titolo, descrizione, importanza opzionale, scadenza opzionale, stato e la data di chiusura effettiva (`closed_on`).
 Lo stato di una attività può assumere uno dei seguenti valori: "Da pensare meglio" (grigio), "Da fare" (azzurro), "In evoluzione" (giallo), "Paused" (arancione), "Fatto" (verde), "Rejected" (rosso).
 La gerarchia è quindi: Ruolo → Obiettivo lungo termine → Obiettivo breve termine → Attività.
 Gli obiettivi LT devono sempre avere importanza e scadenza. Gli elementi figli ereditano importanza e scadenza quando non sono valorizzati, e possono personalizzarli solo rispettando i vincoli: nessuna scadenza oltre il genitore (e antenati) e nessuna importanza superiore a quella del genitore (e antenati).
@@ -22,7 +24,7 @@ Premesso che restano sempre visibili i tasti di salvataggio in alto (com'è oggi
 Ci saranno i seguenti TAB, ciascuno mostrerà una sotto-vista differente:
 - Ruoli: permette di impostare i ruoli.
 - Obiettivi a lungo termine: permette di definire, modificare o eliminare gli obiettivi (operazioni di modifica o eliminazione devono controllare che gli oggetti figli siano coerenti: in caso di eliminazione ci vuole un alert prima e poi la cancellazione anche dei figli; in caso di modifica dell'importanza e della scadenza: vanno presi anche tutti i figli e se la loro scadenza o importanza eccede, vanno riportati al nuovo valore massimo).
-- Obiettivi a breve termine: come sopra, i controlli in questo caso si faranno solo sulle attività sottostanti.
+- Obiettivi a breve termine: mostra una striscia orizzontale di sprint (mettendo in evidenza quello corrente) per navigare gli obiettivi BT dello sprint selezionato, consentendo di gestire periodo, sprint corrente e date di raggiungimento dei BT oltre alle attività sottostanti.
 - Attività: pannello dove si può agire sulle attività, modificando anche lo stato tramite un menù a tendina. La vista espone un blocco filtri condiviso con la Dashboard (intervallo di importanza con estremi aperti, stato, intervallo di scadenza con estremi aperti e ricerca full text su titolo/descrizione) e pulsanti per esportare in CSV tutte le attività visibili e per importare un CSV con la stessa struttura, associando i task ai genitori per nome e creando gli antenati mancanti.
 - Dashboard: vista a card organizzata in una Kanban con colonne corrispondenti ai vari stati delle attività. Ogni card mostra in breve la gerarchia di provenienza, il titolo del task, i primi N caratteri della descrizione, l'importanza e la scadenza; trascinando una card in un'altra colonna si aggiorna lo stato dell'attività. Anche qui sono presenti lo stesso blocco filtri della vista Attività e i comandi di import/export CSV delle attività correnti.
  - le card restano ordinate per importanza decrescente e il drop è attivo sull'intera colonna, non solo sui placeholder o sopra le cards
@@ -35,8 +37,4 @@ Altre considerazioni:
 TODO:
 - Mobile first
 - Aggiungere il "Mission" tab
-- Aggiungere al dominio le date di "effettiva chiusura" dei task e di "effettivo raggiungimento" degli obiettivi LT e BT
- - tali date verranno richieste:
-   - per LT e BT: al click di una nuova azione "On goal" (il default sarà la data di oggi)
-   - per le activity verrà richiesto ogni volta che spostiamo un task in "Fatto" o "Rejected" (anche qui di default ci sarà la data corrente)
 - Archiviazione della settimana: da capire meglio come gestire la settimana e i task non raggiunti, oppure i task in backlog!

@@ -67,6 +67,57 @@
         margin-left: auto;
       }
 
+      .sprint-strip {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0;
+        overflow-x: auto;
+        scrollbar-width: thin;
+      }
+
+      .sprint-pill {
+        min-width: 160px;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--border);
+        border-radius: 0.75rem;
+        background: rgba(18, 24, 38, 0.7);
+        color: var(--muted);
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+        white-space: nowrap;
+      }
+
+      .sprint-pill .sprint-name {
+        font-weight: 600;
+        font-size: 0.85rem;
+      }
+
+      .sprint-pill .sprint-dates {
+        font-size: 0.75rem;
+        color: var(--muted);
+        opacity: 0.8;
+      }
+
+      .sprint-pill.current {
+        border-color: var(--accent);
+      }
+
+      .sprint-pill.selected {
+        background: linear-gradient(135deg, rgba(18, 24, 38, 0.95), rgba(30, 41, 59, 0.95));
+        color: var(--text);
+        border-color: #38bdf8;
+        box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.35);
+      }
+
+      .sprint-pill.current.selected {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 1px rgba(94, 234, 212, 0.35);
+      }
+
       button,
       input,
       select,
@@ -478,6 +529,41 @@
           },
         ];
 
+        const CLOSING_TASK_STATES = new Set([
+          TASK_STATE_IDS.DONE,
+          TASK_STATE_IDS.REJECTED,
+        ]);
+
+        function isoToday() {
+          return new Date().toISOString().slice(0, 10);
+        }
+
+        function isoAddDays(days, fromDate) {
+          const base = fromDate ? new Date(fromDate) : new Date();
+          if (Number.isFinite(days)) {
+            base.setDate(base.getDate() + Number(days));
+          }
+          return base.toISOString().slice(0, 10);
+        }
+
+        function sanitizeIsoDate(value) {
+          const trimmed = typeof value === "string" ? value.trim() : "";
+          return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : null;
+        }
+
+        function promptForIsoDate(message, initialValue) {
+          const defaultValue = sanitizeIsoDate(initialValue) || isoToday();
+          const response = window.prompt(message, defaultValue);
+          if (response == null) return null;
+          const trimmed = response.trim();
+          if (!trimmed) return "";
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+            alert("Formato data non valido. Usa YYYY-MM-DD.");
+            return promptForIsoDate(message, defaultValue);
+          }
+          return trimmed;
+        }
+
         const DEFAULT_TASK_STATE = TASK_STATE_IDS.TO_DO;
         const TASK_STATE_BY_ID = new Map(
           TASK_STATES.map((state) => [state.id, state])
@@ -506,6 +592,7 @@
           replace(nextState) {
             normalizeDomain(nextState);
             this.data = nextState;
+            selectedSprintId = this.data.currentSprintId || selectedSprintId;
             this.persist();
           },
           nextId() {
@@ -514,7 +601,7 @@
         };
 
         function defaultState() {
-          return { nextId: 1, roles: [] };
+          return { nextId: 1, roles: [], sprints: [], currentSprintId: null };
         }
 
         function loadState() {
@@ -541,6 +628,14 @@
           };
           const nextId = () => String(seeded.nextId++);
 
+          const sprint = {
+            id: nextId(),
+            name: "Sprint iniziale",
+            start: today(),
+            end: datePlus(14),
+            st_goal_ids: [],
+          };
+
           const role = {
             id: nextId(),
             title: "Team Leader",
@@ -553,6 +648,7 @@
             description: "Roadmap ML (RAG, valutazione, privacy)",
             importance: 5,
             due: datePlus(120),
+            achieved_on: null,
             st_goals: [],
           };
           const shortTerm = {
@@ -561,6 +657,8 @@
             description: "Pipeline base eval + feedback",
             importance: null,
             due: null,
+            achieved_on: null,
+            sprint_id: sprint.id,
             tasks: [],
           };
           const task = {
@@ -570,12 +668,16 @@
             importance: 4,
             due: datePlus(30),
             state: TASK_STATE_IDS.TO_DO,
+            closed_on: null,
           };
 
           shortTerm.tasks.push(task);
           longTerm.st_goals.push(shortTerm);
           role.lt_goals.push(longTerm);
+          sprint.st_goal_ids.push(shortTerm.id);
           seeded.roles.push(role);
+          seeded.sprints.push(sprint);
+          seeded.currentSprintId = sprint.id;
           normalizeDomain(seeded);
           return seeded;
         }
@@ -600,22 +702,108 @@
         function normalizeTask(task) {
           if (!task || typeof task !== "object") return;
           task.state = getTaskStateId(task.state);
+          task.closed_on = sanitizeIsoDate(task.closed_on);
         }
 
         function normalizeDomain(root) {
           if (!root || typeof root !== "object") return;
+
+          const numericNextId = Number(root.nextId);
+          root.nextId = Number.isFinite(numericNextId) ? numericNextId : 1;
+          const allocateId = () => String(root.nextId++);
+
           if (!Array.isArray(root.roles)) {
             root.roles = [];
           }
+          if (!Array.isArray(root.sprints)) {
+            root.sprints = [];
+          }
+
+          const sprintById = new Map();
+          root.sprints = root.sprints.map((sprint, index) => {
+            const id = sprint?.id != null ? String(sprint.id) : allocateId();
+            const normalized = {
+              id,
+              name: sprint?.name || `Sprint ${index + 1}`,
+              start: sanitizeIsoDate(sprint?.start),
+              end: sanitizeIsoDate(sprint?.end),
+              st_goal_ids: Array.isArray(sprint?.st_goal_ids)
+                ? sprint.st_goal_ids.map((value) => String(value))
+                : [],
+            };
+            sprintById.set(id, normalized);
+            return normalized;
+          });
+
+          if (!root.sprints.length) {
+            const id = allocateId();
+            const defaultSprint = {
+              id,
+              name: "Sprint iniziale",
+              start: isoToday(),
+              end: isoAddDays(14),
+              st_goal_ids: [],
+            };
+            root.sprints.push(defaultSprint);
+            sprintById.set(id, defaultSprint);
+          }
+
+          if (root.currentSprintId != null) {
+            root.currentSprintId = String(root.currentSprintId);
+          }
+          if (!root.currentSprintId || !sprintById.has(root.currentSprintId)) {
+            root.currentSprintId = root.sprints[0]?.id || null;
+          }
+
+          const existingShortTerms = new Set();
+
           root.roles.forEach((role) => {
+            role.id = role?.id != null ? String(role.id) : allocateId();
             role.lt_goals = Array.isArray(role.lt_goals) ? role.lt_goals : [];
             role.lt_goals.forEach((lt) => {
+              lt.id = lt?.id != null ? String(lt.id) : allocateId();
               lt.st_goals = Array.isArray(lt.st_goals) ? lt.st_goals : [];
+              lt.achieved_on = sanitizeIsoDate(lt.achieved_on);
               lt.st_goals.forEach((st) => {
+                st.id = st?.id != null ? String(st.id) : allocateId();
                 st.tasks = Array.isArray(st.tasks) ? st.tasks : [];
+                st.achieved_on = sanitizeIsoDate(st.achieved_on);
+                if (st.sprint_id != null) {
+                  st.sprint_id = String(st.sprint_id);
+                }
+                if (!st.sprint_id || !sprintById.has(st.sprint_id)) {
+                  st.sprint_id = root.currentSprintId;
+                }
+                if (st.sprint_id && sprintById.has(st.sprint_id)) {
+                  const sprint = sprintById.get(st.sprint_id);
+                  if (!Array.isArray(sprint.st_goal_ids)) {
+                    sprint.st_goal_ids = [];
+                  }
+                  if (!sprint.st_goal_ids.includes(st.id)) {
+                    sprint.st_goal_ids.push(st.id);
+                  }
+                }
+                existingShortTerms.add(st.id);
                 st.tasks.forEach(normalizeTask);
               });
             });
+          });
+
+          root.sprints.forEach((sprint) => {
+            if (!Array.isArray(sprint.st_goal_ids)) {
+              sprint.st_goal_ids = [];
+            }
+            const unique = [];
+            const seen = new Set();
+            sprint.st_goal_ids
+              .map((value) => String(value))
+              .forEach((id) => {
+                if (!existingShortTerms.has(id)) return;
+                if (seen.has(id)) return;
+                seen.add(id);
+                unique.push(id);
+              });
+            sprint.st_goal_ids = unique;
           });
         }
 
@@ -652,6 +840,102 @@
         function toImportanceOrNull(value) {
           if (value == null || value === "") return null;
           return toImportance(value, 1);
+        }
+
+        function formatSprintRange(sprint) {
+          if (!sprint) return "—";
+          const start = sprint.start || "—";
+          const end = sprint.end || "—";
+          return `${start} → ${end}`;
+        }
+
+        function ensureCurrentSprintId() {
+          if (!Array.isArray(AppState.data.sprints)) {
+            AppState.data.sprints = [];
+          }
+          let created = false;
+          if (!AppState.data.sprints.length) {
+            const newSprint = createSprint(
+              `Sprint ${AppState.data.sprints.length + 1}`,
+              DateUtils.today(),
+              DateUtils.addDays(14)
+            );
+            AppState.data.sprints.push(newSprint);
+            AppState.data.currentSprintId = newSprint.id;
+            created = true;
+          }
+          if (
+            !AppState.data.currentSprintId ||
+            !AppState.data.sprints.some(
+              (sprint) => sprint.id === AppState.data.currentSprintId
+            )
+          ) {
+            AppState.data.currentSprintId =
+              AppState.data.sprints[0]?.id || null;
+            created = true;
+          }
+          return { id: AppState.data.currentSprintId, created };
+        }
+
+        function detachShortTermFromSprint(shortTerm) {
+          if (!shortTerm || !shortTerm.sprint_id) return;
+          const sprints = AppState.data.sprints || [];
+          const sprint = sprints.find(
+            (candidate) => candidate.id === shortTerm.sprint_id
+          );
+          if (sprint && Array.isArray(sprint.st_goal_ids)) {
+            sprint.st_goal_ids = sprint.st_goal_ids.filter(
+              (id) => id !== shortTerm.id
+            );
+          }
+          shortTerm.sprint_id = null;
+        }
+
+        function attachShortTermToSprint(shortTerm, sprintId) {
+          if (!shortTerm) return;
+          const normalizedId = sprintId != null ? String(sprintId) : null;
+          if (!normalizedId) {
+            detachShortTermFromSprint(shortTerm);
+            return;
+          }
+          if (shortTerm.sprint_id && shortTerm.sprint_id !== normalizedId) {
+            detachShortTermFromSprint(shortTerm);
+          }
+          const sprint = (AppState.data.sprints || []).find(
+            (candidate) => candidate.id === normalizedId
+          );
+          if (!sprint) return;
+          shortTerm.sprint_id = normalizedId;
+          if (!Array.isArray(sprint.st_goal_ids)) {
+            sprint.st_goal_ids = [];
+          }
+          if (!sprint.st_goal_ids.includes(shortTerm.id)) {
+            sprint.st_goal_ids.push(shortTerm.id);
+          }
+        }
+
+        function applyTaskStateChange(task, nextStateId) {
+          if (!task) return false;
+          const previousState = getTaskStateId(task.state);
+          const normalizedNext = getTaskStateId(nextStateId);
+          if (previousState === normalizedNext) return true;
+
+          if (CLOSING_TASK_STATES.has(normalizedNext)) {
+            const value = promptForIsoDate(
+              "Data effettiva di chiusura (YYYY-MM-DD)",
+              task.closed_on || isoToday()
+            );
+            if (value === null) {
+              return false;
+            }
+            task.closed_on = value ? value : null;
+          } else if (CLOSING_TASK_STATES.has(previousState)) {
+            task.closed_on = null;
+          }
+
+          task.state = normalizedNext;
+          normalizeTask(task);
+          return true;
         }
 
         // =============================================================
@@ -740,6 +1024,7 @@
         });
 
         let activeTab = "roles";
+        let selectedSprintId = null;
 
         function render() {
           renderTabs();
@@ -843,6 +1128,19 @@
           if (className) btn.className = className;
           btn.addEventListener("click", onClick);
           return btn;
+        }
+
+        function labeledControl(labelText, control) {
+          const wrapper = document.createElement("label");
+          wrapper.style.display = "flex";
+          wrapper.style.flexDirection = "column";
+          wrapper.style.gap = "0.25rem";
+          const caption = document.createElement("span");
+          caption.textContent = labelText;
+          caption.style.fontSize = "0.75rem";
+          caption.style.color = "var(--muted)";
+          wrapper.append(caption, control);
+          return wrapper;
         }
 
         const TASK_CSV_FILE_NAME = "kanban-covey-tasks.csv";
@@ -1282,9 +1580,17 @@
           select.value = getTaskStateId(task.state);
           updateTaskStateSelectStyle(select);
           select.addEventListener("change", () => {
-            task.state = select.value;
+            const previous = getTaskStateId(task.state);
+            const desired = select.value;
+            if (!applyTaskStateChange(task, desired)) {
+              select.value = previous;
+              updateTaskStateSelectStyle(select);
+              return;
+            }
+            select.value = getTaskStateId(task.state);
             updateTaskStateSelectStyle(select);
             AppState.persist();
+            rerenderTaskView();
           });
           return select;
         }
@@ -1457,6 +1763,9 @@
                     button("Elimina", "", () => {
                       if (!confirmDelete("Eliminare ruolo e tutti i figli?"))
                         return;
+                      role.lt_goals.forEach((lt) =>
+                        lt.st_goals?.forEach((st) => detachShortTermFromSprint(st))
+                      );
                       AppState.data.roles = AppState.data.roles.filter(
                         (candidate) => candidate.id !== role.id
                       );
@@ -1576,15 +1885,41 @@
               }
               ,
               {
+                label: "Raggiunto il",
+                key: (row) => row.lt.achieved_on || "",
+                render: (row) => {
+                  const span = document.createElement("span");
+                  span.textContent = row.lt.achieved_on || "—";
+                  return span;
+                },
+              },
+              {
                 label: "Azioni",
                 render: (row) => {
                   const container = document.createElement("div");
                   container.className = "controls";
                   container.append(
                     button("+ BT", "", () => {
-                      row.lt.st_goals.push(
-                        createShortTerm("Nuovo obiettivo BT", "", null, null)
+                      const sprintId = ensureCurrentSprintId().id;
+                      const newSt = createShortTerm(
+                        "Nuovo obiettivo BT",
+                        "",
+                        null,
+                        null,
+                        { sprintId }
                       );
+                      row.lt.st_goals.push(newSt);
+                      attachShortTermToSprint(newSt, sprintId);
+                      AppState.persist();
+                      render();
+                    }),
+                    button("On goal", "", () => {
+                      const value = promptForIsoDate(
+                        "Data effettiva raggiungimento LT (YYYY-MM-DD)",
+                        row.lt.achieved_on || isoToday()
+                      );
+                      if (value === null) return;
+                      row.lt.achieved_on = value ? value : null;
                       AppState.persist();
                       render();
                     }),
@@ -1595,6 +1930,9 @@
                         )
                       )
                         return;
+                      row.lt.st_goals.forEach((st) =>
+                        detachShortTermFromSprint(st)
+                      );
                       row.role.lt_goals = row.role.lt_goals.filter(
                         (candidate) => candidate.id !== row.lt.id
                       );
@@ -1638,10 +1976,203 @@
         // =============================================================
         function renderShortTermGoals() {
           dom.view.innerHTML = "";
+
+          const ensured = ensureCurrentSprintId();
+          if (ensured.created) {
+            selectedSprintId = ensured.id;
+            AppState.persist();
+          }
+
+          const sprints = Array.isArray(AppState.data.sprints)
+            ? AppState.data.sprints.slice()
+            : [];
+          const sortedSprints = sprints.sort((a, b) => {
+            const startA = a.start || "";
+            const startB = b.start || "";
+            if (startA && startB && startA !== startB) {
+              return startA.localeCompare(startB);
+            }
+            return (a.name || "").localeCompare(b.name || "");
+          });
+
+          if (
+            !sortedSprints.some((sprint) => sprint.id === selectedSprintId)
+          ) {
+            selectedSprintId =
+              AppState.data.currentSprintId || sortedSprints[0]?.id || null;
+          }
+
+          const selectedSprint =
+            sortedSprints.find((sprint) => sprint.id === selectedSprintId) ||
+            sortedSprints[0] ||
+            null;
+
+          if (selectedSprint) {
+            selectedSprintId = selectedSprint.id;
+          }
+
+          const sprintStrip = document.createElement("div");
+          sprintStrip.className = "sprint-strip";
+
+          if (sortedSprints.length) {
+            const currentIndex = selectedSprint
+              ? sortedSprints.findIndex((s) => s.id === selectedSprint.id)
+              : 0;
+            const startIndex = Math.max(0, currentIndex - 3);
+            const endIndex = Math.min(
+              sortedSprints.length - 1,
+              currentIndex + 3
+            );
+            for (let idx = startIndex; idx <= endIndex; idx += 1) {
+              const sprint = sortedSprints[idx];
+              const pill = document.createElement("button");
+              pill.type = "button";
+              pill.className = `sprint-pill${
+                sprint.id === selectedSprintId ? " selected" : ""
+              }${
+                sprint.id === AppState.data.currentSprintId ? " current" : ""
+              }`;
+              const name = document.createElement("span");
+              name.className = "sprint-name";
+              name.textContent = sprint.name || "Sprint";
+              const dates = document.createElement("span");
+              dates.className = "sprint-dates";
+              dates.textContent = formatSprintRange(sprint);
+              pill.append(name, dates);
+              pill.addEventListener("click", () => {
+                selectedSprintId = sprint.id;
+                render();
+              });
+              sprintStrip.appendChild(pill);
+            }
+          }
+
+          const sprintActions = document.createElement("div");
+          sprintActions.className = "controls";
+          sprintActions.append(
+            button("+ Sprint", "primary", () => {
+              const newSprint = createSprint(
+                `Sprint ${AppState.data.sprints.length + 1}`,
+                DateUtils.today(),
+                DateUtils.addDays(14)
+              );
+              AppState.data.sprints.push(newSprint);
+              AppState.data.currentSprintId = newSprint.id;
+              selectedSprintId = newSprint.id;
+              AppState.persist();
+              render();
+            })
+          );
+
+          if (
+            selectedSprint &&
+            AppState.data.currentSprintId !== selectedSprint.id
+          ) {
+            sprintActions.append(
+              button("Imposta come corrente", "", () => {
+                AppState.data.currentSprintId = selectedSprint.id;
+                AppState.persist();
+                render();
+              })
+            );
+          }
+
+          if (selectedSprint) {
+            const deleteSprintBtn = button("Elimina sprint", "", () => {
+              if (
+                (selectedSprint.st_goal_ids || []).length &&
+                !confirmDelete(
+                  "Lo sprint contiene obiettivi BT. Svuotarlo prima di eliminarlo?"
+                )
+              ) {
+                return;
+              }
+              if ((selectedSprint.st_goal_ids || []).length) {
+                alert(
+                  "Rimuovi gli obiettivi BT dallo sprint prima di eliminarlo."
+                );
+                return;
+              }
+              AppState.data.sprints = AppState.data.sprints.filter(
+                (candidate) => candidate.id !== selectedSprint.id
+              );
+              if (AppState.data.currentSprintId === selectedSprint.id) {
+                AppState.data.currentSprintId =
+                  AppState.data.sprints[0]?.id || null;
+              }
+              selectedSprintId =
+                AppState.data.currentSprintId || AppState.data.sprints[0]?.id;
+              AppState.persist();
+              render();
+            });
+            if ((selectedSprint.st_goal_ids || []).length) {
+              deleteSprintBtn.disabled = true;
+              deleteSprintBtn.title =
+                "Sposta o elimina gli obiettivi BT prima di eliminare lo sprint.";
+            }
+            sprintActions.append(deleteSprintBtn);
+          }
+
+          const sprintDetails = document.createElement("div");
+          sprintDetails.style.display = "grid";
+          sprintDetails.style.gridTemplateColumns =
+            "repeat(auto-fit, minmax(180px, 1fr))";
+          sprintDetails.style.gap = "0.75rem";
+          sprintDetails.style.marginBottom = "0.5rem";
+
+          if (selectedSprint) {
+            const nameControl = inputText(
+              selectedSprint.name || "",
+              "Nome sprint",
+              (value) => {
+                selectedSprint.name = value;
+              }
+            );
+            nameControl.addEventListener("blur", () => {
+              AppState.persist();
+              render();
+            });
+
+            const startControl = inputDate(
+              selectedSprint.start,
+              (value) => {
+                selectedSprint.start = value || null;
+              },
+              { readOnly: false }
+            );
+            startControl.addEventListener("blur", () => {
+              AppState.persist();
+              render();
+            });
+
+            const endControl = inputDate(
+              selectedSprint.end,
+              (value) => {
+                selectedSprint.end = value || null;
+              },
+              { readOnly: false }
+            );
+            endControl.addEventListener("blur", () => {
+              AppState.persist();
+              render();
+            });
+
+            sprintDetails.append(
+              labeledControl("Nome", nameControl),
+              labeledControl("Inizio", startControl),
+              labeledControl("Fine", endControl)
+            );
+          }
+
           const rows = [];
           AppState.data.roles.forEach((role) =>
             role.lt_goals.forEach((lt) =>
-              lt.st_goals.forEach((st) => rows.push({ role, lt, st }))
+              lt.st_goals.forEach((st) => {
+                if (selectedSprint && st.sprint_id !== selectedSprint.id) {
+                  return;
+                }
+                rows.push({ role, lt, st });
+              })
             )
           );
 
@@ -1760,24 +2291,59 @@
                   enforceBounds();
 
                   return el;
-                }
+                },
               },
               {
                 label: "Scadenza (ereditata se vuota)",
                 key: (row) => effectiveDueDate(row.st, row.lt.due) || "",
                 render: (row) => {
-                    const el = inputDate(row.st.due, (value) => {
-                        row.st.due = value;
-                        }, { readOnly: false }); // ← Cambiato a false
-                    el.addEventListener("blur", () => {
-                        clampChildToParent(row.st, row.lt);
-                        AppState.persist();
-                        render();
-                    });
-                    return el;
-                }
-              }
-              ,
+                  const el = inputDate(
+                    row.st.due,
+                    (value) => {
+                      row.st.due = value;
+                    },
+                    { readOnly: false }
+                  );
+                  el.addEventListener("blur", () => {
+                    clampChildToParent(row.st, row.lt);
+                    AppState.persist();
+                    render();
+                  });
+                  return el;
+                },
+              },
+              {
+                label: "Sprint",
+                key: (row) => row.st.sprint_id || "",
+                render: (row) => {
+                  const select = document.createElement("select");
+                  AppState.data.sprints.forEach((sprint) => {
+                    const option = document.createElement("option");
+                    option.value = sprint.id;
+                    option.textContent = sprint.name || formatSprintRange(sprint);
+                    select.appendChild(option);
+                  });
+                  if (!row.st.sprint_id && AppState.data.sprints.length) {
+                    row.st.sprint_id = AppState.data.sprints[0].id;
+                  }
+                  select.value = row.st.sprint_id || "";
+                  select.addEventListener("change", () => {
+                    attachShortTermToSprint(row.st, select.value);
+                    AppState.persist();
+                    render();
+                  });
+                  return select;
+                },
+              },
+              {
+                label: "Raggiunto il",
+                key: (row) => row.st.achieved_on || "",
+                render: (row) => {
+                  const span = document.createElement("span");
+                  span.textContent = row.st.achieved_on || "—";
+                  return span;
+                },
+              },
               {
                 label: "Azioni",
                 render: (row) => {
@@ -1785,14 +2351,24 @@
                   container.className = "controls";
                   container.append(
                     button("+ Attività", "", () => {
-                      row.st.tasks.push(
-                        createTask("Nuova attività", "", null, null)
+                      const task = createTask("Nuova attività", "", null, null);
+                      row.st.tasks.push(task);
+                      AppState.persist();
+                      render();
+                    }),
+                    button("On goal", "", () => {
+                      const value = promptForIsoDate(
+                        "Data effettiva raggiungimento BT (YYYY-MM-DD)",
+                        row.st.achieved_on || isoToday()
                       );
+                      if (value === null) return;
+                      row.st.achieved_on = value ? value : null;
                       AppState.persist();
                       render();
                     }),
                     button("Elimina", "", () => {
                       if (!confirmDelete("Eliminare obiettivo BT?")) return;
+                      detachShortTermFromSprint(row.st);
                       row.lt.st_goals = row.lt.st_goals.filter(
                         (candidate) => candidate.id !== row.st.id
                       );
@@ -1826,15 +2402,29 @@
                   )
                 );
               }
-              role.lt_goals[0].st_goals.push(
-                createShortTerm("Nuovo obiettivo BT", "", null, null)
+              const sprintId =
+                selectedSprintId || ensureCurrentSprintId().id || null;
+              const newSt = createShortTerm(
+                "Nuovo obiettivo BT",
+                "",
+                null,
+                null,
+                { sprintId }
               );
+              role.lt_goals[0].st_goals.push(newSt);
+              attachShortTermToSprint(newSt, sprintId);
               AppState.persist();
               render();
             })
           );
 
-          dom.view.append(toolbar, table);
+          dom.view.append(
+            sprintStrip,
+            sprintActions,
+            sprintDetails,
+            toolbar,
+            table
+          );
         }
 
         // =============================================================
@@ -1876,14 +2466,15 @@
                     }
                     const targetLT = newRole.lt_goals[0];
                     if (!targetLT.st_goals.length) {
-                      targetLT.st_goals.push(
-                        createShortTerm(
-                          "Auto creato",
-                          "",
-                          row.st.importance,
-                          row.st.due
-                        )
+                      const autoSt = createShortTerm(
+                        "Auto creato",
+                        "",
+                        row.st.importance,
+                        row.st.due,
+                        { sprintId: row.st.sprint_id }
                       );
+                      targetLT.st_goals.push(autoSt);
+                      attachShortTermToSprint(autoSt, row.st.sprint_id);
                     }
                     const targetST = targetLT.st_goals[0];
                     targetST.tasks.push(row.task);
@@ -1911,14 +2502,15 @@
                       (candidate) => candidate.id !== row.task.id
                     );
                     if (!target.st_goals.length) {
-                      target.st_goals.push(
-                        createShortTerm(
-                          "Auto creato",
-                          "",
-                          row.st.importance,
-                          row.st.due
-                        )
+                      const autoSt = createShortTerm(
+                        "Auto creato",
+                        "",
+                        row.st.importance,
+                        row.st.due,
+                        { sprintId: row.st.sprint_id }
                       );
+                      target.st_goals.push(autoSt);
+                      attachShortTermToSprint(autoSt, row.st.sprint_id);
                     }
                     const targetST = target.st_goals[0];
                     targetST.tasks.push(row.task);
@@ -2031,6 +2623,23 @@
                 },
               },
               {
+                label: "Chiuso il",
+                key: (row) => row.task.closed_on || "",
+                render: (row) => {
+                  const el = inputDate(
+                    row.task.closed_on,
+                    (value) => {
+                      row.task.closed_on = value || null;
+                    },
+                    { readOnly: false }
+                  );
+                  const persist = () => AppState.persist();
+                  el.addEventListener("change", persist);
+                  el.addEventListener("blur", persist);
+                  return el;
+                },
+              },
+              {
                 label: "Azioni",
                 render: (row) => {
                   const container = document.createElement("div");
@@ -2073,7 +2682,16 @@
               }
               const lt = role.lt_goals[0];
               if (!lt.st_goals.length) {
-                lt.st_goals.push(createShortTerm("Nuovo BT", "", null, null));
+                const sprintId = ensureCurrentSprintId().id;
+                const autoSt = createShortTerm(
+                  "Nuovo BT",
+                  "",
+                  null,
+                  null,
+                  { sprintId }
+                );
+                lt.st_goals.push(autoSt);
+                attachShortTermToSprint(autoSt, sprintId);
               }
               lt.st_goals[0].tasks.push(
                 createTask("Nuova attività", "", null, null)
@@ -2218,9 +2836,12 @@
             const ref = findTaskRef(identifiers);
             if (!ref) return;
             const nextState = stateId;
-            if (ref.task.state === nextState) return;
-            ref.task.state = nextState;
-            normalizeTask(ref.task);
+            const previous = getTaskStateId(ref.task.state);
+            if (previous === nextState) return;
+            if (!applyTaskStateChange(ref.task, nextState)) {
+              render();
+              return;
+            }
             AppState.persist();
             render();
           };
@@ -2295,6 +2916,19 @@
         // =============================================================
         // Factory function per creare nuovi elementi del dominio
         // =============================================================
+        function createSprint(name, start, end, stGoalIds = [], id = null) {
+          const sprintId = id != null ? String(id) : AppState.nextId();
+          return {
+            id: sprintId,
+            name: name || `Sprint ${AppState.data.sprints.length + 1}`,
+            start: sanitizeIsoDate(start),
+            end: sanitizeIsoDate(end),
+            st_goal_ids: Array.isArray(stGoalIds)
+              ? stGoalIds.map((value) => String(value))
+              : [],
+          };
+        }
+
         function createRole(title, importance) {
           return {
             id: AppState.nextId(),
@@ -2304,24 +2938,35 @@
           };
         }
 
-        function createLongTerm(title, description, importance, due) {
+        function createLongTerm(title, description, importance, due, achievedOn) {
           return {
             id: AppState.nextId(),
             title,
             description: description || "",
             importance: toImportance(importance, 1),
             due: due || DateUtils.today(),
+            achieved_on: sanitizeIsoDate(achievedOn),
             st_goals: [],
           };
         }
 
-        function createShortTerm(title, description, importance, due) {
+        function createShortTerm(
+          title,
+          description,
+          importance,
+          due,
+          { sprintId = null, achievedOn = null } = {}
+        ) {
+          const fallback = ensureCurrentSprintId().id;
+          const targetSprintId = sprintId != null ? String(sprintId) : fallback;
           return {
             id: AppState.nextId(),
             title,
             description: description || "",
             importance: toImportanceOrNull(importance),
             due: due || null,
+            achieved_on: sanitizeIsoDate(achievedOn),
+            sprint_id: targetSprintId || null,
             tasks: [],
           };
         }
@@ -2334,6 +2979,7 @@
             importance: toImportanceOrNull(importance),
             due: due || null,
             state: DEFAULT_TASK_STATE,
+            closed_on: null,
           };
           normalizeTask(task);
           return task;
@@ -2574,9 +3220,13 @@
           );
           if (!st) {
             const due = sanitizeCsvDate(dueHint) || null;
-            st = createShortTerm(finalTitle, "", null, due);
+            const sprintId = ensureCurrentSprintId().id;
+            st = createShortTerm(finalTitle, "", null, due, { sprintId });
             clampChildToParent(st, lt);
             lt.st_goals.push(st);
+            attachShortTermToSprint(st, sprintId);
+          } else if (st.sprint_id) {
+            attachShortTermToSprint(st, st.sprint_id);
           }
           return st;
         }
