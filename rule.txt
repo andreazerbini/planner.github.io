@@ -5,6 +5,8 @@ Meglio se riesci a lasciare tutto su un file unico html, ma ben organizato al su
 Aggiornamenti svolti:
 - Il dominio e le viste descritte di seguito sono stati implementati e rappresentano lo stato attuale dell'applicazione.
 - L'integrazione Google Drive salva e apre esclusivamente dalla cartella "Kanban_Covey_BigRocks" (creata automaticamente se assente).
+- Ogni salvataggio su Google Drive genera un nuovo file `kanban_covey_bigrocks_aaaaMMgg_hhmm_ss_ccc.json`, lasciando le versioni precedenti intatte.
+- Le viste "Attività" e "Dashboard" includono filtri aggiuntivi per Ruolo, obiettivi LT e BT.
 
 Partiamo dal DOMINIO, ovvero il nostro JSON.
 La radice contiene la collezione di "Ruoli". Ogni Ruolo possiede un titolo e una importanza (intero ≥1) e racchiude gli "obiettivi a lungo termine" (LT).
