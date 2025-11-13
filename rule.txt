@@ -8,7 +8,7 @@ Aggiornamenti svolti:
 - Ogni salvataggio su Google Drive genera un nuovo file `kanban_covey_bigrocks_aaaaMMgg_hhmm_ss_ccc.json`, lasciando le versioni precedenti intatte.
 - Le viste "Attività" e "Dashboard" includono filtri aggiuntivi per Ruolo, obiettivi LT e BT.
 - Il dominio ora memorizza le date di raggiungimento effettivo (LT/BT) e di chiusura task, organizzando i BT in sprint con periodo e sprint corrente.
-- La vista "Obiettivi a breve termine" espone una striscia di sprint navigabile con comandi per selezionare lo sprint corrente e registrare le date di completamento.
+- La vista "Obiettivi a breve termine" espone una striscia di sprint centrata con frecce di navigazione, evidenzia lo sprint corrente e mantiene sincronizzati i filtri di Attività e Dashboard sullo sprint selezionato.
 
 Partiamo dal DOMINIO, ovvero il nostro JSON.
 La radice contiene la collezione di "Ruoli" (con titolo e importanza) e, accanto a questi, la collezione di "Sprint" con id, nome, date di inizio/fine e l'elenco dei BT associati, oltre al riferimento `currentSprintId` che indica lo sprint attivo.

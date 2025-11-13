@@ -67,13 +67,44 @@
         margin-left: auto;
       }
 
-      .sprint-strip {
+      .sprint-strip-wrapper {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        justify-content: center;
+        gap: 0.75rem;
         padding: 0.5rem 0;
-        overflow-x: auto;
-        scrollbar-width: thin;
+      }
+
+      .sprint-strip {
+        display: flex;
+        align-items: stretch;
+        justify-content: center;
+        gap: 0.5rem;
+      }
+
+      .sprint-nav {
+        width: 40px;
+        height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--panel);
+        color: var(--muted);
+        font-size: 1.1rem;
+        cursor: pointer;
+        transition: border-color 0.2s ease, color 0.2s ease;
+      }
+
+      .sprint-nav:hover:not(:disabled) {
+        border-color: #33405e;
+        color: var(--text);
+      }
+
+      .sprint-nav:disabled {
+        opacity: 0.35;
+        cursor: default;
       }
 
       .sprint-pill {
@@ -87,7 +118,8 @@
         display: flex;
         flex-direction: column;
         gap: 0.2rem;
-        transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+        transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease,
+          box-shadow 0.2s ease;
         white-space: nowrap;
       }
 
@@ -103,19 +135,29 @@
       }
 
       .sprint-pill.current {
-        border-color: var(--accent);
+        border-color: rgba(94, 234, 212, 0.75);
+        background: linear-gradient(135deg, rgba(94, 234, 212, 0.25), rgba(14, 116, 144, 0.2));
+        color: #e6fffb;
+        box-shadow: 0 0 0 1px rgba(94, 234, 212, 0.2);
+      }
+
+      .sprint-pill.current .sprint-dates {
+        color: #ccfbf1;
       }
 
       .sprint-pill.selected {
-        background: linear-gradient(135deg, rgba(18, 24, 38, 0.95), rgba(30, 41, 59, 0.95));
-        color: var(--text);
         border-color: #38bdf8;
         box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.35);
       }
 
+      .sprint-pill.selected:not(.current) {
+        background: linear-gradient(135deg, rgba(18, 24, 38, 0.95), rgba(30, 41, 59, 0.95));
+        color: var(--text);
+      }
+
       .sprint-pill.current.selected {
         border-color: var(--accent);
-        box-shadow: 0 0 0 1px rgba(94, 234, 212, 0.35);
+        box-shadow: 0 0 0 1px rgba(94, 234, 212, 0.45);
       }
 
       button,
@@ -592,7 +634,10 @@
           replace(nextState) {
             normalizeDomain(nextState);
             this.data = nextState;
-            selectedSprintId = this.data.currentSprintId || selectedSprintId;
+            updateSelectedSprint(
+              this.data.currentSprintId || selectedSprintId,
+              { rerenderShortTerm: false }
+            );
             this.persist();
           },
           nextId() {
@@ -1024,7 +1069,25 @@
         });
 
         let activeTab = "roles";
-        let selectedSprintId = null;
+        let selectedSprintId = AppState.data.currentSprintId || null;
+
+        function updateSelectedSprint(
+          nextId,
+          { rerenderShortTerm = false } = {}
+        ) {
+          const normalized = nextId != null ? String(nextId) : null;
+          if (normalized === selectedSprintId) {
+            if (rerenderShortTerm) {
+              render();
+            }
+            return;
+          }
+          selectedSprintId = normalized;
+          rerenderTaskView();
+          if (rerenderShortTerm) {
+            render();
+          }
+        }
 
         function render() {
           renderTabs();
@@ -1214,6 +1277,12 @@
         }
 
         function taskMatchesFilters(ref) {
+          const sprintFilter =
+            selectedSprintId || AppState.data.currentSprintId || null;
+          if (sprintFilter && ref.st.sprint_id !== sprintFilter) {
+            return false;
+          }
+
           const {
             roleId,
             ltId,
@@ -1979,8 +2048,10 @@
 
           const ensured = ensureCurrentSprintId();
           if (ensured.created) {
-            selectedSprintId = ensured.id;
             AppState.persist();
+          }
+          if (!selectedSprintId && ensured.id) {
+            updateSelectedSprint(ensured.id);
           }
 
           const sprints = Array.isArray(AppState.data.sprints)
@@ -1998,8 +2069,11 @@
           if (
             !sortedSprints.some((sprint) => sprint.id === selectedSprintId)
           ) {
-            selectedSprintId =
+            const fallbackId =
               AppState.data.currentSprintId || sortedSprints[0]?.id || null;
+            if (fallbackId) {
+              updateSelectedSprint(fallbackId);
+            }
           }
 
           const selectedSprint =
@@ -2007,17 +2081,39 @@
             sortedSprints[0] ||
             null;
 
-          if (selectedSprint) {
-            selectedSprintId = selectedSprint.id;
-          }
-
+          const sprintStripWrapper = document.createElement("div");
+          sprintStripWrapper.className = "sprint-strip-wrapper";
           const sprintStrip = document.createElement("div");
           sprintStrip.className = "sprint-strip";
 
+          const selectedIndex = selectedSprint
+            ? sortedSprints.findIndex((s) => s.id === selectedSprint.id)
+            : -1;
+          const prevSprint =
+            selectedIndex > 0 ? sortedSprints[selectedIndex - 1] : null;
+          const nextSprint =
+            selectedIndex >= 0 && selectedIndex < sortedSprints.length - 1
+              ? sortedSprints[selectedIndex + 1]
+              : null;
+
+          const prevBtn = button("←", "sprint-nav", () => {
+            if (prevSprint) {
+              updateSelectedSprint(prevSprint.id, { rerenderShortTerm: true });
+            }
+          });
+          prevBtn.disabled = !prevSprint;
+
+          const nextBtn = button("→", "sprint-nav", () => {
+            if (nextSprint) {
+              updateSelectedSprint(nextSprint.id, { rerenderShortTerm: true });
+            }
+          });
+          nextBtn.disabled = !nextSprint;
+
+          sprintStripWrapper.append(prevBtn, sprintStrip, nextBtn);
+
           if (sortedSprints.length) {
-            const currentIndex = selectedSprint
-              ? sortedSprints.findIndex((s) => s.id === selectedSprint.id)
-              : 0;
+            const currentIndex = selectedIndex >= 0 ? selectedIndex : 0;
             const startIndex = Math.max(0, currentIndex - 3);
             const endIndex = Math.min(
               sortedSprints.length - 1,
@@ -2040,8 +2136,7 @@
               dates.textContent = formatSprintRange(sprint);
               pill.append(name, dates);
               pill.addEventListener("click", () => {
-                selectedSprintId = sprint.id;
-                render();
+                updateSelectedSprint(sprint.id, { rerenderShortTerm: true });
               });
               sprintStrip.appendChild(pill);
             }
@@ -2058,7 +2153,7 @@
               );
               AppState.data.sprints.push(newSprint);
               AppState.data.currentSprintId = newSprint.id;
-              selectedSprintId = newSprint.id;
+              updateSelectedSprint(newSprint.id);
               AppState.persist();
               render();
             })
@@ -2100,8 +2195,9 @@
                 AppState.data.currentSprintId =
                   AppState.data.sprints[0]?.id || null;
               }
-              selectedSprintId =
-                AppState.data.currentSprintId || AppState.data.sprints[0]?.id;
+              updateSelectedSprint(
+                AppState.data.currentSprintId || AppState.data.sprints[0]?.id || null
+              );
               AppState.persist();
               render();
             });
@@ -2419,7 +2515,7 @@
           );
 
           dom.view.append(
-            sprintStrip,
+            sprintStripWrapper,
             sprintActions,
             sprintDetails,
             toolbar,
